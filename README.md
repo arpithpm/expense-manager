@@ -2,6 +2,10 @@
 
 An intelligent expense tracking iOS application that uses AI-powered receipt scanning with OpenAI Vision API and Supabase for data storage.
 
+## 📚 Documentation
+
+For complete technical documentation, API details, and implementation guides, see: **[DOCUMENTATION.md](DOCUMENTATION.md)**
+
 ## Features
 
 ### ✅ Completed Features

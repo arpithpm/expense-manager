@@ -70,7 +70,7 @@ Content-Type: application/json
       "content": [
         {
           "type": "text",
-          "text": "{EXPENSE_EXTRACTION_PROMPT}"
+          "text": "You are an expert at extracting expense information from receipt images. Analyze the provided receipt image and extract the following information with high precision:\n\nREQUIRED FIELDS:\n1. **Date**: The transaction date (format: YYYY-MM-DD). If no date is visible, use today's date.\n2. **Merchant**: The business/store name exactly as shown on the receipt\n3. **Amount**: The total amount paid (extract only the numerical value, no currency symbol)\n4. **Currency**: The currency code (e.g., USD, EUR, GBP). Default to USD if not specified.\n5. **Category**: Choose the most appropriate category from this exact list:\n   - Food & Dining, Transportation, Shopping, Entertainment, Bills & Utilities, Healthcare, Travel, Education, Business, Other\n\nOPTIONAL FIELDS:\n6. **Description**: Brief description of items purchased (max 100 characters)\n7. **Payment Method**: Choose from: Cash, Credit Card, Debit Card, Digital Payment, Bank Transfer, Check, Other\n8. **Tax Amount**: Tax amount if clearly visible (numerical value only)\n9. **Confidence**: Your confidence level in the extraction (0.0 to 1.0)\n\nEXTRACTION RULES:\n- Look for the TOTAL or FINAL amount, not subtotals\n- Ignore tips unless they're part of the total\n- For restaurants: use \"Food & Dining\" category\n- For gas stations: use \"Transportation\" category\n- For grocery stores: use \"Food & Dining\" or \"Shopping\" based on context\n- If multiple items, categorize based on the primary expense type\n- Be conservative with confidence scores - use 0.9+ only when very certain\n\nRESPONSE FORMAT:\nReturn ONLY a valid JSON object with this exact structure (no additional text, markdown, or formatting):\n\n{\n    \"date\": \"YYYY-MM-DD\",\n    \"merchant\": \"Business Name\",\n    \"amount\": 99.99,\n    \"currency\": \"USD\",\n    \"category\": \"Food & Dining\",\n    \"description\": \"Brief description of purchase\",\n    \"paymentMethod\": \"Credit Card\",\n    \"taxAmount\": 8.25,\n    \"confidence\": 0.85\n}\n\nIf you cannot extract certain information, use null for optional fields. For required fields, make reasonable assumptions and lower the confidence score accordingly."
         },
         {
           "type": "image_url",
@@ -99,20 +99,42 @@ Content-Type: application/json
 }
 ```
 
+#### Example Real Response
+```json
+{
+  "choices": [
+    {
+      "message": {
+        "content": "{\n    \"date\": \"2025-07-25\",\n    \"merchant\": \"Pak Enterprises\",\n    \"amount\": 19.46,\n    \"currency\": \"EUR\",\n    \"category\": \"Shopping\",\n    \"description\": \"Anjappar Idli Rava, Fresh Chillies, TRS Urid Whole Gota\",\n    \"paymentMethod\": \"Debit Card\",\n    \"taxAmount\": 1.27,\n    \"confidence\": 0.95\n}"
+      }
+    }
+  ]
+}
+```
+
 #### Extracted Expense Data Format
+After parsing the OpenAI response, the app extracts this structured data:
 ```json
 {
   "date": "2025-07-25",
-  "merchant": "Store Name",
+  "merchant": "Pak Enterprises",
   "amount": 19.46,
   "currency": "EUR",
   "category": "Shopping",
-  "description": "Item details",
+  "description": "Anjappar Idli Rava, Fresh Chillies, TRS Urid Whole Gota",
   "paymentMethod": "Debit Card",
   "taxAmount": 1.27,
   "confidence": 0.95
 }
 ```
+
+#### Processing Steps
+1. **Image Compression**: Receipt photo compressed to 80% JPEG quality
+2. **Base64 Encoding**: Image converted to base64 string for API transmission
+3. **Request Construction**: Structured prompt + image data sent to GPT-4o
+4. **Response Parsing**: JSON extracted from response, markdown cleaned if present
+5. **Data Validation**: Extracted fields validated and transformed to app models
+6. **Error Handling**: Comprehensive error catching for network, parsing, and validation issues
 
 ### Supabase REST API Integration
 
@@ -131,17 +153,20 @@ Prefer: return=representation
 
 #### Create Expense
 ```http
-POST /expenses
+POST https://{PROJECT_ID}.supabase.co/rest/v1/expenses
+Authorization: Bearer {SUPABASE_ANON_KEY}
+apikey: {SUPABASE_ANON_KEY}
 Content-Type: application/json
+Prefer: return=representation
 
 {
-  "id": "uuid",
+  "id": "123e4567-e89b-12d3-a456-426614174000",
   "date": "2025-07-25T10:00:00Z",
-  "merchant": "Store Name",
+  "merchant": "Pak Enterprises",
   "amount": 19.46,
   "currency": "EUR",
   "category": "Shopping",
-  "description": "Item details",
+  "description": "Anjappar Idli Rava, Fresh Chillies, TRS Urid Whole Gota",
   "payment_method": "Debit Card",
   "tax_amount": 1.27,
   "receipt_image_url": null,
@@ -150,19 +175,100 @@ Content-Type: application/json
 }
 ```
 
+**Response (201 Created):**
+```json
+[
+  {
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "date": "2025-07-25T10:00:00+00:00",
+    "merchant": "Pak Enterprises",
+    "amount": 19.46,
+    "currency": "EUR",
+    "category": "Shopping",
+    "description": "Anjappar Idli Rava, Fresh Chillies, TRS Urid Whole Gota",
+    "payment_method": "Debit Card",
+    "tax_amount": 1.27,
+    "receipt_image_url": null,
+    "created_at": "2025-07-25T10:00:00.123456+00:00",
+    "updated_at": "2025-07-25T10:00:00.123456+00:00"
+  }
+]
+```
+
 #### Fetch Recent Expenses
 ```http
-GET /expenses?order=created_at.desc&limit=10
+GET https://{PROJECT_ID}.supabase.co/rest/v1/expenses?order=created_at.desc&limit=10
+Authorization: Bearer {SUPABASE_ANON_KEY}
+apikey: {SUPABASE_ANON_KEY}
+Content-Type: application/json
+```
+
+**Response (200 OK):**
+```json
+[
+  {
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "date": "2025-07-25T10:00:00+00:00",
+    "merchant": "Pak Enterprises",
+    "amount": 19.46,
+    "currency": "EUR",
+    "category": "Shopping",
+    "description": "Anjappar Idli Rava, Fresh Chillies, TRS Urid Whole Gota",
+    "payment_method": "Debit Card",
+    "tax_amount": 1.27,
+    "receipt_image_url": null,
+    "created_at": "2025-07-25T10:00:00.123456+00:00",
+    "updated_at": "2025-07-25T10:00:00.123456+00:00"
+  }
+]
 ```
 
 #### Get Total Expenses
 ```http
-GET /expenses?select=amount
+GET https://{PROJECT_ID}.supabase.co/rest/v1/expenses?select=amount
+Authorization: Bearer {SUPABASE_ANON_KEY}
+apikey: {SUPABASE_ANON_KEY}
+Content-Type: application/json
+```
+
+**Response (200 OK):**
+```json
+[
+  {"amount": 19.46},
+  {"amount": 25.99},
+  {"amount": 12.50}
+]
 ```
 
 #### Get Monthly Total
 ```http
-GET /expenses?select=amount&date=gte.{START_DATE}&date=lt.{END_DATE}
+GET https://{PROJECT_ID}.supabase.co/rest/v1/expenses?select=amount&date=gte.2025-07-01T00:00:00Z&date=lt.2025-08-01T00:00:00Z
+Authorization: Bearer {SUPABASE_ANON_KEY}
+apikey: {SUPABASE_ANON_KEY}
+Content-Type: application/json
+```
+
+**Response (200 OK):**
+```json
+[
+  {"amount": 19.46},
+  {"amount": 25.99}
+]
+```
+
+#### Connection Test
+```http
+GET https://{PROJECT_ID}.supabase.co/rest/v1/
+Authorization: Bearer {SUPABASE_ANON_KEY}
+apikey: {SUPABASE_ANON_KEY}
+Content-Type: application/json
+```
+
+**Response (200 OK or 404 Not Found - both indicate valid connection):**
+```json
+{
+  "message": "ok"
+}
 ```
 
 ## Database Schema
