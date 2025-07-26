@@ -1,0 +1,166 @@
+PRIVACY POLICY FOR MY EXPENSES APP
+
+Last Updated: January 26, 2025
+
+INTRODUCTION
+
+This Privacy Policy describes how the My Expenses mobile application ("App", "we", "us", or "our") collects, uses, and protects your information when you use our iOS application. We are committed to protecting your privacy and ensuring the security of your personal and financial information.
+
+By using the My Expenses app, you agree to the collection and use of information in accordance with this Privacy Policy.
+
+INFORMATION WE COLLECT
+
+1. RECEIPT IMAGES
+   - We access receipt photos that you voluntarily select from your device's photo library
+   - These images are processed locally on your device and sent securely to OpenAI's Vision API for expense data extraction
+   - We do not store receipt images on our servers or any external databases
+   - Images are only temporarily held in device memory during processing
+
+2. EXPENSE DATA
+   - Merchant names, transaction amounts, dates, categories, and descriptions extracted from receipts
+   - Payment methods and tax amounts when available
+   - All expense data is stored locally on your device using iOS UserDefaults
+   - No expense data is transmitted to or stored on external servers (except during OpenAI processing)
+
+3. API CREDENTIALS
+   - Your OpenAI API key is stored securely in iOS Keychain on your device
+   - We do not have access to or store your API credentials on any external systems
+
+4. DEVICE INFORMATION
+   - We may collect basic device information for app functionality (iOS version, device type)
+   - This information is used solely for app compatibility and performance optimization
+
+HOW WE USE YOUR INFORMATION
+
+1. PRIMARY FUNCTIONS
+   - Process receipt images to extract expense information using AI technology
+   - Store and organize your expense data locally on your device
+   - Provide expense tracking, categorization, and reporting features
+   - Enable search and filtering of your expense history
+
+2. APP IMPROVEMENT
+   - Analyze app usage patterns to improve functionality (locally, no data transmission)
+   - Ensure compatibility across different iOS versions and devices
+
+3. USER SUPPORT
+   - Respond to user inquiries and provide technical support
+   - Process feedback sent voluntarily through the in-app feedback feature
+
+DATA STORAGE AND SECURITY
+
+1. LOCAL STORAGE
+   - All expense data is stored locally on your device using iOS UserDefaults
+   - Data persists on your device until you delete the app or manually clear data
+   - No expense data is transmitted to or stored on external servers or databases
+
+2. SECURITY MEASURES
+   - API credentials are stored securely using iOS Keychain with hardware-level encryption
+   - Receipt processing uses secure HTTPS connections to OpenAI's API
+   - All data transmission is encrypted using industry-standard SSL/TLS protocols
+   - Local data storage follows iOS security best practices
+
+3. THIRD-PARTY SERVICES
+   - We use OpenAI's Vision API for receipt processing
+   - Receipt images and extracted data are sent to OpenAI's servers temporarily for processing
+   - OpenAI's privacy policy and data handling practices apply to this processing
+   - We recommend reviewing OpenAI's Privacy Policy at https://openai.com/privacy/
+
+DATA SHARING AND DISCLOSURE
+
+1. NO SELLING OR SHARING
+   - We do not sell, trade, or rent your personal information to third parties
+   - We do not share your expense data with advertisers or marketing companies
+   - Your financial information remains private and secure
+
+2. LIMITED THIRD-PARTY ACCESS
+   - OpenAI processes receipt images temporarily for AI analysis (as described above)
+   - No other third parties have access to your expense data
+
+3. LEGAL REQUIREMENTS
+   - We may disclose information if required by law, legal process, or government request
+   - We will notify users of such requests unless prohibited by law
+
+YOUR RIGHTS AND CHOICES
+
+1. DATA CONTROL
+   - You have full control over your expense data stored locally on your device
+   - You can delete individual expenses or clear all data through the app interface
+   - You can delete the entire app to remove all associated data
+
+2. PHOTO LIBRARY ACCESS
+   - The app requests permission to access your photo library only when you select receipts
+   - You can revoke photo library permissions through iOS Settings at any time
+   - The app provides options to delete processed photos from your library
+
+3. API KEY MANAGEMENT
+   - You can update or remove your OpenAI API key through the app settings
+   - Removing the API key will disable receipt processing but preserve existing data
+
+4. FEEDBACK AND COMMUNICATION
+   - Sending feedback through the app is entirely voluntary
+   - You can choose your preferred email application for sending feedback
+
+DATA RETENTION
+
+1. LOCAL DATA
+   - Expense data remains on your device until you delete it or uninstall the app
+   - Data is not automatically deleted or expired by the app
+
+2. PROCESSING DATA
+   - Receipt images are not permanently stored by the app
+   - OpenAI may temporarily process images according to their data retention policies
+
+3. BACKUP DATA
+   - If you enable iCloud backup for the app, your data may be stored in your personal iCloud account
+   - This is controlled by your iOS and iCloud settings, not by the app
+
+CHILDREN'S PRIVACY
+
+The My Expenses app is not intended for use by children under 13 years of age. We do not knowingly collect personal information from children under 13. If we become aware that we have collected personal information from a child under 13, we will take steps to delete such information.
+
+INTERNATIONAL DATA TRANSFERS
+
+If you are using the app outside the United States, please note that receipt processing through OpenAI may involve transferring data to servers located in the United States or other countries. By using the app, you consent to such transfers in accordance with this Privacy Policy.
+
+CHANGES TO THIS PRIVACY POLICY
+
+We may update this Privacy Policy from time to time to reflect changes in our practices or legal requirements. We will notify users of any material changes by:
+- Updating the "Last Updated" date at the top of this policy
+- Providing in-app notifications for significant changes
+- Posting updates on our support channels
+
+Your continued use of the app after any changes indicates your acceptance of the updated Privacy Policy.
+
+FUTURE FEATURES
+
+We are planning to implement iCloud sync functionality using Apple's CloudKit service. When this feature becomes available:
+- Your expense data may be synchronized across your Apple devices signed into the same iCloud account
+- This will be an optional feature that you can enable or disable
+- Apple's privacy policies will apply to data stored in iCloud
+- We will update this Privacy Policy before implementing this feature
+
+CONTACT INFORMATION
+
+If you have any questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us:
+
+Email: arpithpmuddi@gmail.com
+Subject: My Expenses App - Privacy Policy Inquiry
+
+We will respond to privacy-related inquiries within 30 days.
+
+CONSENT
+
+By downloading, installing, and using the My Expenses app, you acknowledge that you have read and understood this Privacy Policy and consent to the collection, use, and disclosure of your information as described herein.
+
+COMPLIANCE
+
+This Privacy Policy is designed to comply with:
+- Apple App Store Review Guidelines
+- iOS Privacy Requirements
+- General Data Protection Regulation (GDPR) principles
+- California Consumer Privacy Act (CCPA) requirements
+- Other applicable privacy laws and regulations
+
+---
+
+This Privacy Policy is effective as of the date listed above and applies to all users of the My Expenses mobile application.

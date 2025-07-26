@@ -86,57 +86,6 @@ struct OpenAIResponse: Codable {
     }
 }
 
-struct SupabaseAmountOnly: Codable {
-    let amount: Double
-}
-
-struct SupabaseExpense: Codable {
-    let id: UUID?
-    let date: String
-    let merchant: String
-    let amount: Double
-    let currency: String
-    let category: String
-    let description: String?
-    let payment_method: String?
-    let tax_amount: Double?
-    let receipt_image_url: String?
-    let created_at: String?
-    let updated_at: String?
-    
-    init(from expense: Expense) {
-        self.id = expense.id
-        self.date = ISO8601DateFormatter().string(from: expense.date)
-        self.merchant = expense.merchant
-        self.amount = expense.amount
-        self.currency = expense.currency
-        self.category = expense.category
-        self.description = expense.description
-        self.payment_method = expense.paymentMethod
-        self.tax_amount = expense.taxAmount
-        self.receipt_image_url = expense.receiptImageUrl
-        self.created_at = ISO8601DateFormatter().string(from: expense.createdAt)
-        self.updated_at = ISO8601DateFormatter().string(from: expense.updatedAt)
-    }
-    
-    func toExpense() -> Expense {
-        let dateFormatter = ISO8601DateFormatter()
-        return Expense(
-            id: id ?? UUID(),
-            date: dateFormatter.date(from: date) ?? Date(),
-            merchant: merchant,
-            amount: amount,
-            currency: currency,
-            category: category,
-            description: description,
-            paymentMethod: payment_method,
-            taxAmount: tax_amount,
-            receiptImageUrl: receipt_image_url,
-            createdAt: created_at.flatMap { dateFormatter.date(from: $0) } ?? Date(),
-            updatedAt: updated_at.flatMap { dateFormatter.date(from: $0) } ?? Date()
-        )
-    }
-}
 
 // MARK: - Services
 
@@ -147,8 +96,6 @@ class KeychainService {
     private let service = "com.yourcompany.ExpenseManager"
     
     enum KeychainKey: String {
-        case supabaseUrl = "supabase_url"
-        case supabaseKey = "supabase_key"
         case openaiKey = "openai_key"
     }
     
@@ -220,26 +167,20 @@ class ConfigurationManager: ObservableObject {
     }
     
     private func checkConfiguration() {
-        let hasSupabaseUrl = keychain.retrieve(for: .supabaseUrl) != nil
-        let hasSupabaseKey = keychain.retrieve(for: .supabaseKey) != nil
         let hasOpenAIKey = keychain.retrieve(for: .openaiKey) != nil
-        isConfigured = hasSupabaseUrl && hasSupabaseKey && hasOpenAIKey
+        isConfigured = hasOpenAIKey
     }
     
-    func saveConfiguration(supabaseUrl: String, supabaseKey: String, openaiKey: String) async -> Bool {
-        let trimmedUrl = supabaseUrl.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedSupabaseKey = supabaseKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    func saveConfiguration(openaiKey: String) async -> Bool {
         let trimmedOpenAIKey = openaiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        guard !trimmedUrl.isEmpty, !trimmedSupabaseKey.isEmpty, !trimmedOpenAIKey.isEmpty else {
+        guard !trimmedOpenAIKey.isEmpty else {
             return false
         }
         
-        let urlSaved = keychain.save(trimmedUrl, for: .supabaseUrl)
-        let supabaseKeySaved = keychain.save(trimmedSupabaseKey, for: .supabaseKey)
         let openaiKeySaved = keychain.save(trimmedOpenAIKey, for: .openaiKey)
         
-        if urlSaved && supabaseKeySaved && openaiKeySaved {
+        if openaiKeySaved {
             checkConfiguration()
             return true
         }
@@ -250,48 +191,17 @@ class ConfigurationManager: ObservableObject {
         connectionStatus = .testing
         isTestingConnection = true
         
-        let supabaseResult = await testSupabaseConnection()
         let openaiResult = await testOpenAIConnection()
         
         isTestingConnection = false
         
-        if supabaseResult.success && openaiResult.success {
+        if openaiResult.success {
             connectionStatus = .success
         } else {
-            let errors = [supabaseResult.error, openaiResult.error].compactMap { $0 }.joined(separator: "; ")
-            connectionStatus = .failure(errors)
+            connectionStatus = .failure(openaiResult.error ?? "Unknown error")
         }
     }
     
-    private func testSupabaseConnection() async -> (success: Bool, error: String?) {
-        guard let url = keychain.retrieve(for: .supabaseUrl),
-              let key = keychain.retrieve(for: .supabaseKey),
-              let supabaseURL = URL(string: "\(url)/rest/v1/") else {
-            return (false, "Invalid Supabase credentials")
-        }
-        
-        var request = URLRequest(url: supabaseURL)
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-        request.setValue(key, forHTTPHeaderField: "apikey")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        do {
-            let (_, response) = try await URLSession.shared.data(for: request)
-            if let httpResponse = response as? HTTPURLResponse {
-                if httpResponse.statusCode == 200 || httpResponse.statusCode == 404 {
-                    return (true, nil)
-                } else if httpResponse.statusCode == 401 {
-                    return (false, "Invalid Supabase API key")
-                } else {
-                    return (false, "Supabase connection failed (Status: \(httpResponse.statusCode))")
-                }
-            }
-            return (false, "Invalid response from Supabase")
-        } catch {
-            return (false, "Supabase connection error: \(error.localizedDescription)")
-        }
-    }
     
     private func testOpenAIConnection() async -> (success: Bool, error: String?) {
         guard let key = keychain.retrieve(for: .openaiKey),
@@ -326,10 +236,9 @@ class ConfigurationManager: ObservableObject {
         connectionStatus = .notTested
     }
     
-    func getSupabaseUrl() -> String? { keychain.retrieve(for: .supabaseUrl) }
-    func getSupabaseKey() -> String? { keychain.retrieve(for: .supabaseKey) }
     func getOpenAIKey() -> String? { keychain.retrieve(for: .openaiKey) }
 }
+
 
 class OpenAIService {
     static let shared = OpenAIService()
@@ -498,187 +407,11 @@ enum OpenAIError: LocalizedError {
     }
 }
 
-class SupabaseService {
-    static let shared = SupabaseService()
-    private init() {}
-    
-    private var baseURL: String? {
-        guard let url = KeychainService.shared.retrieve(for: .supabaseUrl) else { return nil }
-        return "\(url)/rest/v1"
-    }
-    
-    private var headers: [String: String] {
-        guard let apiKey = KeychainService.shared.retrieve(for: .supabaseKey) else { return [:] }
-        return [
-            "Authorization": "Bearer \(apiKey)",
-            "apikey": apiKey,
-            "Content-Type": "application/json",
-            "Prefer": "return=representation"
-        ]
-    }
-    
-    func createExpense(_ expense: Expense) async throws -> Expense {
-        guard let baseURL = baseURL, let url = URL(string: "\(baseURL)/expenses") else {
-            throw SupabaseError.missingCredentials
-        }
-        
-        let supabaseExpense = SupabaseExpense(from: expense)
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        
-        for (key, value) in headers {
-            request.setValue(value, forHTTPHeaderField: key)
-        }
-        
-        do {
-            request.httpBody = try JSONEncoder().encode(supabaseExpense)
-        } catch {
-            throw SupabaseError.encodingFailed
-        }
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        try handleHTTPResponse(response)
-        
-        do {
-            let createdExpenses = try JSONDecoder().decode([SupabaseExpense].self, from: data)
-            guard let createdExpense = createdExpenses.first else {
-                throw SupabaseError.noDataReturned
-            }
-            return createdExpense.toExpense()
-        } catch {
-            throw SupabaseError.decodingFailed
-        }
-    }
-    
-    func fetchExpenses(limit: Int? = nil, offset: Int? = nil) async throws -> [Expense] {
-        guard let baseURL = baseURL else { throw SupabaseError.missingCredentials }
-        
-        var urlComponents = URLComponents(string: "\(baseURL)/expenses")!
-        var queryItems: [URLQueryItem] = [URLQueryItem(name: "order", value: "created_at.desc")]
-        
-        if let limit = limit { queryItems.append(URLQueryItem(name: "limit", value: String(limit))) }
-        if let offset = offset { queryItems.append(URLQueryItem(name: "offset", value: String(offset))) }
-        
-        urlComponents.queryItems = queryItems
-        guard let url = urlComponents.url else { throw SupabaseError.invalidURL }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        try handleHTTPResponse(response)
-        
-        do {
-            let supabaseExpenses = try JSONDecoder().decode([SupabaseExpense].self, from: data)
-            return supabaseExpenses.map { $0.toExpense() }
-        } catch {
-            print("Supabase decoding error: \(error)")
-            if let responseString = String(data: data, encoding: .utf8) {
-                print("Raw Supabase response: \(responseString)")
-            }
-            throw SupabaseError.decodingFailed
-        }
-    }
-    
-    func getTotalExpenses() async throws -> Double {
-        guard let baseURL = baseURL, let url = URL(string: "\(baseURL)/expenses?select=amount") else {
-            throw SupabaseError.missingCredentials
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        try handleHTTPResponse(response)
-        
-        do {
-            let expenses = try JSONDecoder().decode([SupabaseAmountOnly].self, from: data)
-            return expenses.reduce(0) { $0 + $1.amount }
-        } catch {
-            print("Supabase getTotalExpenses decoding error: \(error)")
-            if let responseString = String(data: data, encoding: .utf8) {
-                print("Raw response: \(responseString)")
-            }
-            throw SupabaseError.decodingFailed
-        }
-    }
-    
-    func getMonthlyTotal() async throws -> Double {
-        guard let baseURL = baseURL else { throw SupabaseError.missingCredentials }
-        
-        let calendar = Calendar.current
-        let now = Date()
-        let startOfMonth = calendar.dateInterval(of: .month, for: now)?.start ?? now
-        let endOfMonth = calendar.dateInterval(of: .month, for: now)?.end ?? now
-        
-        let dateFormatter = ISO8601DateFormatter()
-        let startDateString = dateFormatter.string(from: startOfMonth)
-        let endDateString = dateFormatter.string(from: endOfMonth)
-        
-        guard let url = URL(string: "\(baseURL)/expenses?select=amount&date=gte.\(startDateString)&date=lt.\(endDateString)") else {
-            throw SupabaseError.invalidURL
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        try handleHTTPResponse(response)
-        
-        do {
-            let expenses = try JSONDecoder().decode([SupabaseAmountOnly].self, from: data)
-            return expenses.reduce(0) { $0 + $1.amount }
-        } catch {
-            print("Supabase getMonthlyTotal decoding error: \(error)")
-            if let responseString = String(data: data, encoding: .utf8) {
-                print("Raw response: \(responseString)")
-            }
-            throw SupabaseError.decodingFailed
-        }
-    }
-    
-    private func handleHTTPResponse(_ response: URLResponse) throws {
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw SupabaseError.invalidResponse
-        }
-        
-        switch httpResponse.statusCode {
-        case 200...299: return
-        case 401: throw SupabaseError.unauthorized
-        case 404: throw SupabaseError.notFound
-        case 400...499: throw SupabaseError.clientError(httpResponse.statusCode)
-        case 500...599: throw SupabaseError.serverError(httpResponse.statusCode)
-        default: throw SupabaseError.unknownError(httpResponse.statusCode)
-        }
-    }
-}
-
-enum SupabaseError: LocalizedError {
-    case missingCredentials, invalidURL, encodingFailed, decodingFailed, invalidResponse
-    case unauthorized, notFound, clientError(Int), serverError(Int), unknownError(Int), noDataReturned
-    
-    var errorDescription: String? {
-        switch self {
-        case .missingCredentials: return "Supabase credentials not found"
-        case .invalidURL: return "Invalid Supabase URL"
-        case .encodingFailed: return "Failed to encode request data"
-        case .decodingFailed: return "Failed to decode response data"
-        case .invalidResponse: return "Invalid response from Supabase"
-        case .unauthorized: return "Unauthorized access to Supabase"
-        case .notFound: return "Resource not found"
-        case .clientError(let code): return "Client error (Status: \(code))"
-        case .serverError(let code): return "Server error (Status: \(code))"
-        case .unknownError(let code): return "Unknown error (Status: \(code))"
-        case .noDataReturned: return "No data returned from Supabase"
-        }
-    }
-}
 
 @MainActor
 class ExpenseService: ObservableObject {
+    static let shared = ExpenseService()
+    
     @Published var expenses: [Expense] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -686,8 +419,18 @@ class ExpenseService: ObservableObject {
     @Published var showProcessingCompletionDialog = false
     @Published var processedPhotoCount = 0
     
-    private let supabaseService = SupabaseService.shared
     private let openAIService = OpenAIService.shared
+    private let userDefaults = UserDefaults.standard
+    private let expensesKey = "SavedExpenses"
+    private let lastBackupKey = "LastBackupDate"
+    
+    private init() {
+        loadExpensesFromUserDefaults()
+        // Set initial backup timestamp if we have data but no backup date
+        if !expenses.isEmpty && userDefaults.object(forKey: lastBackupKey) == nil {
+            userDefaults.set(Date(), forKey: lastBackupKey)
+        }
+    }
     
     struct ProcessedPhoto: Identifiable {
         let id = UUID()
@@ -713,7 +456,8 @@ class ExpenseService: ObservableObject {
                     let extractedData = try await openAIService.extractExpenseFromReceipt(image)
                     let expense = try createExpenseFromExtraction(extractedData)
                     
-                    let createdExpense = try await supabaseService.createExpense(expense)
+                    // Save expense locally
+                    let createdExpense = addExpense(expense)
                     
                     // Track the processed photo with captured identifier
                     let processedPhoto = ProcessedPhoto(
@@ -741,15 +485,6 @@ class ExpenseService: ObservableObject {
                         errorMessage = "Failed to parse receipt data. Try a clearer image."
                     default:
                         errorMessage = "OpenAI processing failed: \(openAIError.localizedDescription)"
-                    }
-                } else if let supabaseError = error as? SupabaseError {
-                    switch supabaseError {
-                    case .unauthorized:
-                        errorMessage = "Supabase access denied. Check your API key."
-                    case .missingCredentials:
-                        errorMessage = "Supabase credentials missing. Please configure in settings."
-                    default:
-                        errorMessage = "Database error: \(supabaseError.localizedDescription)"
                     }
                 } else {
                     errorMessage = "Processing failed: \(error.localizedDescription)"
@@ -798,34 +533,24 @@ class ExpenseService: ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        do {
-            let fetchedExpenses = try await supabaseService.fetchExpenses(limit: limit)
-            expenses = fetchedExpenses
-            isLoading = false
-            return fetchedExpenses
-        } catch {
-            isLoading = false
-            errorMessage = error.localizedDescription
-            throw error
-        }
+        let recentExpenses = Array(expenses.sorted { $0.createdAt > $1.createdAt }.prefix(limit))
+        isLoading = false
+        return recentExpenses
     }
     
-    func getTotalExpenses() async throws -> Double {
-        do {
-            return try await supabaseService.getTotalExpenses()
-        } catch {
-            errorMessage = error.localizedDescription
-            throw error
-        }
+    func getTotalExpenses() -> Double {
+        return expenses.reduce(0) { $0 + $1.amount }
     }
     
-    func getMonthlyTotal() async throws -> Double {
-        do {
-            return try await supabaseService.getMonthlyTotal()
-        } catch {
-            errorMessage = error.localizedDescription
-            throw error
-        }
+    func getMonthlyTotal() -> Double {
+        let calendar = Calendar.current
+        let now = Date()
+        let startOfMonth = calendar.dateInterval(of: .month, for: now)?.start ?? now
+        let endOfMonth = calendar.dateInterval(of: .month, for: now)?.end ?? now
+        
+        return expenses.filter { expense in
+            expense.date >= startOfMonth && expense.date < endOfMonth
+        }.reduce(0) { $0 + $1.amount }
     }
     
     func deletePhotoFromLibrary(_ processedPhoto: ProcessedPhoto) async -> Bool {
@@ -879,4 +604,107 @@ class ExpenseService: ObservableObject {
     func clearProcessedPhotos() {
         processedPhotos.removeAll()
     }
+    
+    // MARK: - Local Storage Methods
+    
+    private func loadExpensesFromUserDefaults() {
+        if let data = userDefaults.data(forKey: expensesKey),
+           let decodedExpenses = try? JSONDecoder().decode([Expense].self, from: data) {
+            self.expenses = decodedExpenses
+        }
+    }
+    
+    private func saveExpensesToUserDefaults() {
+        if let data = try? JSONEncoder().encode(expenses) {
+            userDefaults.set(data, forKey: expensesKey)
+            // Update backup timestamp when data is saved
+            userDefaults.set(Date(), forKey: lastBackupKey)
+        }
+    }
+    
+    func addExpense(_ expense: Expense) -> Expense {
+        expenses.append(expense)
+        saveExpensesToUserDefaults()
+        return expense
+    }
+    
+    func deleteExpense(_ expense: Expense) {
+        expenses.removeAll { $0.id == expense.id }
+        // Also remove from processed photos if it exists
+        processedPhotos.removeAll { $0.expense.id == expense.id }
+        saveExpensesToUserDefaults()
+    }
+    
+    // MARK: - Backup Status Methods
+    
+    func getLastBackupDate() -> Date? {
+        return userDefaults.object(forKey: lastBackupKey) as? Date
+    }
+    
+    func isDataBackedUp() -> Bool {
+        // Consider data backed up if there's a recent backup (within last 24 hours) and we have expenses
+        guard let lastBackup = getLastBackupDate() else { return false }
+        let twentyFourHoursAgo = Date().addingTimeInterval(-24 * 60 * 60)
+        return lastBackup > twentyFourHoursAgo && !expenses.isEmpty
+    }
+    
+    func getBackupStatus() -> BackupStatus {
+        if expenses.isEmpty {
+            return .noData
+        }
+        
+        guard let lastBackup = getLastBackupDate() else {
+            return .notBackedUp
+        }
+        
+        let now = Date()
+        let timeSinceBackup = now.timeIntervalSince(lastBackup)
+        
+        if timeSinceBackup < 60 * 60 { // Less than 1 hour
+            return .current
+        } else if timeSinceBackup < 24 * 60 * 60 { // Less than 24 hours
+            return .recent
+        } else {
+            return .outdated
+        }
+    }
+}
+
+enum BackupStatus {
+    case noData
+    case current
+    case recent
+    case outdated
+    case notBackedUp
+    
+    var displayText: String {
+        switch self {
+        case .noData: return "No data to backup"
+        case .current: return "Backed up recently"
+        case .recent: return "Backed up today"
+        case .outdated: return "Backup outdated"
+        case .notBackedUp: return "Not backed up"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .noData: return .secondary
+        case .current: return .green
+        case .recent: return .blue
+        case .outdated: return .orange
+        case .notBackedUp: return .red
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .noData: return "doc"
+        case .current: return "checkmark.icloud.fill"
+        case .recent: return "checkmark.icloud"
+        case .outdated: return "exclamationmark.icloud"
+        case .notBackedUp: return "xmark.icloud"
+        }
+    }
+    
 }

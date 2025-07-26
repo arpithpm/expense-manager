@@ -3,8 +3,6 @@ import Foundation
 
 struct ConfigurationView: View {
     @EnvironmentObject var configurationManager: ConfigurationManager
-    @State private var supabaseUrl: String = ""
-    @State private var supabaseKey: String = ""
     @State private var openaiKey: String = ""
     @State private var showingAlert = false
     @State private var alertMessage = ""
@@ -43,7 +41,7 @@ struct ConfigurationView: View {
                 .fontWeight(.bold)
                 .multilineTextAlignment(.center)
             
-            Text("Configure your Supabase and OpenAI credentials to get started")
+            Text("Configure your OpenAI API key to get started with AI-powered receipt processing")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -52,30 +50,6 @@ struct ConfigurationView: View {
     
     private var configurationForm: some View {
         VStack(spacing: 20) {
-            GroupBox("Supabase Configuration") {
-                VStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Supabase URL")
-                            .font(.headline)
-                        TextField("https://xxx.supabase.co", text: $supabaseUrl)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .autocapitalization(.none)
-                            .autocorrectionDisabled()
-                            .keyboardType(.URL)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Supabase Anon Key")
-                            .font(.headline)
-                        SecureField("eyJhbGciOiJIUzI1NiIsInR5cCI6...", text: $supabaseKey)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .autocapitalization(.none)
-                            .autocorrectionDisabled()
-                    }
-                }
-                .padding(.vertical, 8)
-            }
-            
             GroupBox("OpenAI Configuration") {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("OpenAI API Key")
@@ -84,6 +58,10 @@ struct ConfigurationView: View {
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .autocapitalization(.none)
                         .autocorrectionDisabled()
+                    
+                    Text("Required for AI-powered receipt processing. Data is stored locally on your device.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
                 .padding(.vertical, 8)
             }
@@ -96,7 +74,7 @@ struct ConfigurationView: View {
                 HStack {
                     ProgressView()
                         .scaleEffect(0.8)
-                    Text("Testing connections...")
+                    Text("Testing connection...")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -111,7 +89,7 @@ struct ConfigurationView: View {
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.green)
-                        Text("All connections successful!")
+                        Text("OpenAI connection successful!")
                             .font(.subheadline)
                             .foregroundColor(.green)
                     }
@@ -133,7 +111,7 @@ struct ConfigurationView: View {
     
     private var actionButtons: some View {
         VStack(spacing: 12) {
-            Button("Test Connections") {
+            Button("Test Connection") {
                 Task {
                     await testConnections()
                 }
@@ -152,8 +130,6 @@ struct ConfigurationView: View {
     }
     
     private var isFieldsEmpty: Bool {
-        supabaseUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-        supabaseKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
         openaiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     
@@ -168,8 +144,6 @@ struct ConfigurationView: View {
         isProcessing = true
         
         let success = await configurationManager.saveConfiguration(
-            supabaseUrl: supabaseUrl,
-            supabaseKey: supabaseKey,
             openaiKey: openaiKey
         )
         
@@ -187,8 +161,6 @@ struct ConfigurationView: View {
         isProcessing = true
         
         let success = await configurationManager.saveConfiguration(
-            supabaseUrl: supabaseUrl,
-            supabaseKey: supabaseKey,
             openaiKey: openaiKey
         )
         

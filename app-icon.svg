@@ -1,0 +1,110 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradient for the background -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4A90E2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#357ABD;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Gradient for the receipt -->
+    <linearGradient id="receiptGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#F8F9FA;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Gradient for the dollar sign -->
+    <linearGradient id="dollarGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#34C759;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2E8B57;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Drop shadow filter -->
+    <filter id="dropShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.15"/>
+    </filter>
+    
+    <!-- Inner shadow for depth -->
+    <filter id="innerShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feOffset dx="0" dy="2"/>
+      <feGaussianBlur stdDeviation="4" result="offset-blur"/>
+      <feComposite operator="out" in="SourceGraphic" in2="offset-blur" result="inverse"/>
+      <feFlood flood-color="#000000" flood-opacity="0.1" result="color"/>
+      <feComposite operator="in" in="color" in2="inverse" result="shadow"/>
+      <feComposite operator="over" in="shadow" in2="SourceGraphic"/>
+    </filter>
+  </defs>
+  
+  <!-- App icon background with rounded corners -->
+  <rect x="0" y="0" width="1024" height="1024" rx="180" ry="180" fill="url(#bgGradient)"/>
+  
+  <!-- Receipt paper with shadow -->
+  <rect x="256" y="200" width="512" height="680" rx="24" ry="24" 
+        fill="url(#receiptGradient)" 
+        stroke="#E5E5E7" 
+        stroke-width="2" 
+        filter="url(#dropShadow)"/>
+  
+  <!-- Receipt perforated top edge -->
+  <g fill="#E5E5E7">
+    <circle cx="280" cy="200" r="8"/>
+    <circle cx="320" cy="200" r="8"/>
+    <circle cx="360" cy="200" r="8"/>
+    <circle cx="400" cy="200" r="8"/>
+    <circle cx="440" cy="200" r="8"/>
+    <circle cx="480" cy="200" r="8"/>
+    <circle cx="520" cy="200" r="8"/>
+    <circle cx="560" cy="200" r="8"/>
+    <circle cx="600" cy="200" r="8"/>
+    <circle cx="640" cy="200" r="8"/>
+    <circle cx="680" cy="200" r="8"/>
+    <circle cx="720" cy="200" r="8"/>
+    <circle cx="744" cy="200" r="8"/>
+  </g>
+  
+  <!-- Receipt content lines -->
+  <g fill="#C7C7CC" opacity="0.6">
+    <!-- Header line -->
+    <rect x="320" y="280" width="200" height="12" rx="6"/>
+    
+    <!-- Item lines -->
+    <rect x="320" y="340" width="384" height="8" rx="4"/>
+    <rect x="320" y="370" width="320" height="8" rx="4"/>
+    <rect x="320" y="400" width="360" height="8" rx="4"/>
+    <rect x="320" y="430" width="280" height="8" rx="4"/>
+    <rect x="320" y="460" width="340" height="8" rx="4"/>
+    
+    <!-- Divider line -->
+    <rect x="320" y="510" width="384" height="4" rx="2"/>
+    
+    <!-- Total line -->
+    <rect x="320" y="540" width="160" height="12" rx="6"/>
+  </g>
+  
+  <!-- Amount display on receipt -->
+  <g fill="#1D1D1F">
+    <text x="620" y="555" font-family="SF Pro Display, -apple-system, sans-serif" 
+          font-size="36" font-weight="600" text-anchor="end">$149.99</text>
+  </g>
+  
+  <!-- Dollar sign icon in circle -->
+  <circle cx="700" cy="380" r="80" fill="url(#dollarGradient)" filter="url(#dropShadow)"/>
+  <circle cx="700" cy="380" r="80" fill="none" stroke="#FFFFFF" stroke-width="4" opacity="0.3"/>
+  
+  <!-- Dollar sign -->
+  <text x="700" y="410" font-family="SF Pro Display, -apple-system, sans-serif" 
+        font-size="84" font-weight="700" text-anchor="middle" fill="#FFFFFF">$</text>
+  
+  <!-- AI sparkle indicator -->
+  <g transform="translate(600, 280)" fill="#FFD60A">
+    <!-- Main sparkle -->
+    <path d="M 0,-16 L 4,-4 L 16,0 L 4,4 L 0,16 L -4,4 L -16,0 L -4,-4 Z" opacity="0.9"/>
+    <!-- Small sparkles -->
+    <path d="M 24,-8 L 26,-4 L 30,-2 L 26,0 L 24,4 L 22,0 L 18,-2 L 22,-4 Z" opacity="0.7"/>
+    <path d="M -20,12 L -18,16 L -14,18 L -18,20 L -20,24 L -22,20 L -26,18 L -22,16 Z" opacity="0.8"/>
+  </g>
+  
+  <!-- Subtle highlight on receipt -->
+  <rect x="256" y="200" width="512" height="120" rx="24" ry="24" 
+        fill="url(#receiptGradient)" 
+        opacity="0.1"/>
+</svg>

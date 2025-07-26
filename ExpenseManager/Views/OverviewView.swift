@@ -5,14 +5,33 @@ import Photos
 
 struct OverviewView: View {
     @EnvironmentObject var configurationManager: ConfigurationManager
-    @StateObject private var expenseService = ExpenseService()
+    @ObservedObject private var expenseService = ExpenseService.shared
     @State private var selectedPhotos: [PhotosPickerItem] = []
     @State private var isProcessingReceipts = false
     @State private var showingAlert = false
     @State private var alertMessage = ""
-    @State private var recentExpenses: [Expense] = []
-    @State private var totalExpenses: Double = 0
-    @State private var monthlyTotal: Double = 0
+    @State private var expenseToDelete: Expense?
+    @State private var showingDeleteConfirmation = false
+    @State private var showingAllExpenses = false
+    // Computed properties that automatically update when expenseService.expenses changes
+    private var totalExpenses: Double {
+        expenseService.expenses.reduce(0) { $0 + $1.amount }
+    }
+    
+    private var monthlyTotal: Double {
+        let calendar = Calendar.current
+        let now = Date()
+        let startOfMonth = calendar.dateInterval(of: .month, for: now)?.start ?? now
+        let endOfMonth = calendar.dateInterval(of: .month, for: now)?.end ?? now
+        
+        return expenseService.expenses.filter { expense in
+            expense.date >= startOfMonth && expense.date < endOfMonth
+        }.reduce(0) { $0 + $1.amount }
+    }
+    
+    private var recentExpenses: [Expense] {
+        Array(expenseService.expenses.sorted { $0.createdAt > $1.createdAt }.prefix(5))
+    }
     
     var body: some View {
         NavigationView {
@@ -26,16 +45,14 @@ struct OverviewView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
             }
-            .navigationTitle("Expense Manager")
+            .navigationTitle("My Expenses")
             .navigationBarTitleDisplayMode(.large)
             .refreshable {
-                await loadExpenses()
+                // Data refreshes automatically through @Published properties
             }
         }
         .onAppear {
-            Task {
-                await loadExpenses()
-            }
+            // Expenses are automatically loaded from ExpenseService init
         }
         .alert("Processing Result", isPresented: $showingAlert) {
             Button("OK") { }
@@ -52,6 +69,24 @@ struct OverviewView: View {
             }
         } message: {
             Text("Successfully processed \(expenseService.processedPhotoCount) photo\(expenseService.processedPhotoCount == 1 ? "" : "s"). Would you like to delete the original\(expenseService.processedPhotoCount == 1 ? "" : "s") from your Photos library?")
+        }
+        .alert("Delete Expense", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {
+                expenseToDelete = nil
+            }
+            Button("Delete", role: .destructive) {
+                if let expense = expenseToDelete {
+                    expenseService.deleteExpense(expense)
+                    expenseToDelete = nil
+                }
+            }
+        } message: {
+            if let expense = expenseToDelete {
+                Text("Are you sure you want to delete the expense from \(expense.merchant) for $\(expense.amount, specifier: "%.2f")?")
+            }
+        }
+        .sheet(isPresented: $showingAllExpenses) {
+            AllExpensesView()
         }
         .onChange(of: selectedPhotos) { oldValue, newValue in
             if !newValue.isEmpty {
@@ -142,6 +177,16 @@ struct OverviewView: View {
                     LazyVStack(spacing: 12) {
                         ForEach(expenseService.processedPhotos) { processedPhoto in
                             ProcessedPhotoRowView(processedPhoto: processedPhoto)
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    Button("Delete", role: .destructive) {
+                                        deleteExpense(processedPhoto.expense)
+                                    }
+                                }
+                                .contextMenu {
+                                    Button("Delete Expense", role: .destructive) {
+                                        deleteExpense(processedPhoto.expense)
+                                    }
+                                }
                         }
                     }
                 }
@@ -157,7 +202,7 @@ struct OverviewView: View {
                 Spacer()
                 if !recentExpenses.isEmpty {
                     Button("View All") {
-                        // TODO: Navigate to all expenses view
+                        showingAllExpenses = true
                     }
                     .font(.subheadline)
                     .foregroundColor(.accentColor)
@@ -182,6 +227,16 @@ struct OverviewView: View {
                 LazyVStack(spacing: 12) {
                     ForEach(recentExpenses.prefix(5)) { expense in
                         ExpenseRowView(expense: expense)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button("Delete", role: .destructive) {
+                                    deleteExpense(expense)
+                                }
+                            }
+                            .contextMenu {
+                                Button("Delete Expense", role: .destructive) {
+                                    deleteExpense(expense)
+                                }
+                            }
                     }
                 }
             }
@@ -194,10 +249,10 @@ struct OverviewView: View {
         let processedCount = await expenseService.processReceiptPhotos(selectedPhotos)
         
         selectedPhotos.removeAll()
-        await loadExpenses()
+        // No need to manually load expenses - the computed properties will automatically update
         
         if processedCount > 0 {
-            alertMessage = "Successfully processed \(processedCount) receipt\(processedCount == 1 ? "" : "s") and added to your expenses.\n\nYou can now manually delete the original photo\(processedCount == 1 ? "" : "s") from your Photos app if desired."
+            alertMessage = "Successfully processed \(processedCount) receipt\(processedCount == 1 ? "" : "s") and added to your expenses."
         } else {
             alertMessage = "Failed to process receipts. Please check your API credentials and try again."
         }
@@ -206,20 +261,16 @@ struct OverviewView: View {
         isProcessingReceipts = false
     }
     
-    private func loadExpenses() async {
-        do {
-            recentExpenses = try await expenseService.fetchRecentExpenses(limit: 10)
-            totalExpenses = try await expenseService.getTotalExpenses()
-            monthlyTotal = try await expenseService.getMonthlyTotal()
-        } catch {
-            print("Failed to load expenses: \(error)")
-        }
-    }
     
     private func openPhotosApp() {
         if let photosURL = URL(string: "photos-redirect://") {
             UIApplication.shared.open(photosURL)
         }
+    }
+    
+    private func deleteExpense(_ expense: Expense) {
+        expenseToDelete = expense
+        showingDeleteConfirmation = true
     }
 }
 
@@ -343,7 +394,7 @@ struct ProcessedPhotoRowView: View {
                     .foregroundColor(.green)
                     .fontWeight(.medium)
                 
-                Text("Delete manually from Photos")
+                Text("Swipe to delete")
                     .font(.caption2)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.trailing)
@@ -357,6 +408,98 @@ struct ProcessedPhotoRowView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.green.opacity(0.3), lineWidth: 1)
         )
+    }
+}
+
+struct AllExpensesView: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var expenseService = ExpenseService.shared
+    @State private var expenseToDelete: Expense?
+    @State private var showingDeleteConfirmation = false
+    @State private var searchText = ""
+    
+    private var filteredExpenses: [Expense] {
+        if searchText.isEmpty {
+            return expenseService.expenses.sorted { $0.createdAt > $1.createdAt }
+        } else {
+            return expenseService.expenses.filter { expense in
+                expense.merchant.localizedCaseInsensitiveContains(searchText) ||
+                expense.category.localizedCaseInsensitiveContains(searchText) ||
+                (expense.description?.localizedCaseInsensitiveContains(searchText) ?? false)
+            }.sorted { $0.createdAt > $1.createdAt }
+        }
+    }
+    
+    var body: some View {
+        NavigationView {
+            List {
+                if filteredExpenses.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "receipt")
+                            .font(.system(size: 48))
+                            .foregroundColor(.secondary)
+                        Text("No expenses found")
+                            .font(.title3)
+                            .fontWeight(.medium)
+                        if !searchText.isEmpty {
+                            Text("Try adjusting your search")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 40)
+                    .listRowSeparator(.hidden)
+                } else {
+                    ForEach(filteredExpenses) { expense in
+                        ExpenseRowView(expense: expense)
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button("Delete", role: .destructive) {
+                                    deleteExpense(expense)
+                                }
+                            }
+                            .contextMenu {
+                                Button("Delete Expense", role: .destructive) {
+                                    deleteExpense(expense)
+                                }
+                            }
+                    }
+                }
+            }
+            .listStyle(PlainListStyle())
+            .navigationTitle("All Expenses")
+            .navigationBarTitleDisplayMode(.large)
+            .searchable(text: $searchText, prompt: "Search expenses...")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .alert("Delete Expense", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {
+                expenseToDelete = nil
+            }
+            Button("Delete", role: .destructive) {
+                if let expense = expenseToDelete {
+                    expenseService.deleteExpense(expense)
+                    expenseToDelete = nil
+                }
+            }
+        } message: {
+            if let expense = expenseToDelete {
+                Text("Are you sure you want to delete the expense from \(expense.merchant) for $\(expense.amount, specifier: "%.2f")?")
+            }
+        }
+    }
+    
+    private func deleteExpense(_ expense: Expense) {
+        expenseToDelete = expense
+        showingDeleteConfirmation = true
     }
 }
 

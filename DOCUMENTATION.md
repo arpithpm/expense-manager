@@ -4,7 +4,7 @@
 1. [Overview](#overview)
 2. [Architecture](#architecture)
 3. [API Integrations](#api-integrations)
-4. [Database Schema](#database-schema)
+4. [Data Storage](#data-storage)
 5. [Data Models](#data-models)
 6. [Services](#services)
 7. [User Interface](#user-interface)
@@ -16,35 +16,39 @@
 
 ## Overview
 
-The Expense Manager is an iOS application that uses AI-powered receipt scanning to automatically extract expense information and store it in a cloud database. The app combines OpenAI's Vision API for receipt processing with Supabase for data storage.
+The Expense Manager is an iOS application that uses AI-powered receipt scanning to automatically extract expense information and store it locally on the device. The app combines OpenAI's Vision API for receipt processing with local UserDefaults storage, with preparation for future Core Data + CloudKit migration for iCloud sync.
 
 ### Key Features
 - **AI Receipt Processing**: Automatically extracts expense data from receipt photos
 - **Secure Configuration**: Encrypted storage of API credentials using iOS Keychain
-- **Cloud Storage**: Real-time data synchronization with Supabase
+- **Local Storage**: Fast, reliable local data storage with UserDefaults
+- **Real-time Updates**: Instant UI updates when data changes
 - **Modern UI**: SwiftUI-based interface with loading states and error handling
 - **Privacy-First**: Manual photo deletion approach respecting user privacy
 - **Smart Photo Management**: Post-processing dialog with options to keep or delete original photos
+- **Complete CRUD Operations**: Add, view, search, and delete expenses
+- **Backup Status Tracking**: Visual indicators for data backup status
+- **Cross-View Data Consistency**: Singleton pattern ensures data consistency
 
 ## Architecture
 
 ### High-Level Architecture
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   iOS App       │    │   OpenAI API    │    │   Supabase      │
-│   (SwiftUI)     │────│   (GPT-4o)      │    │   (PostgreSQL)  │
+│   iOS App       │    │   OpenAI API    │    │  Local Storage  │
+│   (SwiftUI)     │────│   (GPT-4o)      │    │ (UserDefaults)  │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
-    PhotosPicker            Vision API              REST API
-    Keychain                JSON Response          Real-time DB
+    PhotosPicker            Vision API              Local JSON
+    Keychain                JSON Response          Future: CloudKit
 ```
 
 ### Core Components
-1. **ConfigurationManager**: API credential management and validation
-2. **ExpenseService**: Main business logic coordinator
+1. **ConfigurationManager**: OpenAI API credential management and validation
+2. **ExpenseService**: Main business logic coordinator with local storage (singleton pattern)
 3. **OpenAIService**: Receipt processing via Vision API
-4. **SupabaseService**: Database operations and sync
-5. **KeychainService**: Secure credential storage
+4. **KeychainService**: Secure credential storage
+5. **BackupStatus**: Local data backup status tracking system
 
 ## API Integrations
 
@@ -137,195 +141,87 @@ After parsing the OpenAI response, the app extracts this structured data:
 5. **Data Validation**: Extracted fields validated and transformed to app models
 6. **Error Handling**: Comprehensive error catching for network, parsing, and validation issues
 
-### Supabase REST API Integration
+## Data Storage
 
-#### Base URL
-```
-https://{PROJECT_ID}.supabase.co/rest/v1
-```
+### Local Storage Implementation
 
-#### Request Headers
-```
-Authorization: Bearer {SUPABASE_ANON_KEY}
-apikey: {SUPABASE_ANON_KEY}
-Content-Type: application/json
-Prefer: return=representation
-```
+The app uses UserDefaults for local data persistence with a singleton ExpenseService pattern for data consistency across views.
 
-#### Create Expense
-```http
-POST https://{PROJECT_ID}.supabase.co/rest/v1/expenses
-Authorization: Bearer {SUPABASE_ANON_KEY}
-apikey: {SUPABASE_ANON_KEY}
-Content-Type: application/json
-Prefer: return=representation
-
-{
-  "id": "123e4567-e89b-12d3-a456-426614174000",
-  "date": "2025-07-25T10:00:00Z",
-  "merchant": "Pak Enterprises",
-  "amount": 19.46,
-  "currency": "EUR",
-  "category": "Shopping",
-  "description": "Anjappar Idli Rava, Fresh Chillies, TRS Urid Whole Gota",
-  "payment_method": "Debit Card",
-  "tax_amount": 1.27,
-  "receipt_image_url": null,
-  "created_at": "2025-07-25T10:00:00Z",
-  "updated_at": "2025-07-25T10:00:00Z"
-}
+#### Storage Architecture
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  ExpenseService │    │   UserDefaults  │    │   BackupStatus  │
+│   (Singleton)   │────│   JSON Storage  │────│    Tracking     │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+   @Published Array         Encoded JSON           Last Backup Date
+   Real-time Updates       Automatic Save         Status Indicators
 ```
 
-**Response (201 Created):**
+#### Key Features
+- **Singleton Pattern**: `ExpenseService.shared` ensures data consistency
+- **Real-time Updates**: `@Published` properties trigger UI updates automatically
+- **Automatic Backup Tracking**: Timestamps are updated when data is saved
+- **JSON Serialization**: Expenses stored as encoded JSON in UserDefaults
+- **Future-Ready**: Prepared for Core Data + CloudKit migration
+
+#### Local Operations
+```swift
+// Add expense (automatically saves and updates backup timestamp)
+let expense = expenseService.addExpense(newExpense)
+
+// Delete expense (removes from array and updates storage)
+expenseService.deleteExpense(expense)
+
+// Get totals (computed from local array)
+let total = expenseService.getTotalExpenses()
+let monthly = expenseService.getMonthlyTotal()
+
+// Check backup status
+let status = expenseService.getBackupStatus()
+```
+
+### UserDefaults Storage Schema
+
+#### Expense Object Structure
+Expenses are stored as JSON array in UserDefaults with the key `"SavedExpenses"`:
+
 ```json
 [
   {
     "id": "123e4567-e89b-12d3-a456-426614174000",
-    "date": "2025-07-25T10:00:00+00:00",
+    "date": "2025-07-25T10:00:00Z",
     "merchant": "Pak Enterprises",
     "amount": 19.46,
     "currency": "EUR",
     "category": "Shopping",
     "description": "Anjappar Idli Rava, Fresh Chillies, TRS Urid Whole Gota",
-    "payment_method": "Debit Card",
-    "tax_amount": 1.27,
-    "receipt_image_url": null,
-    "created_at": "2025-07-25T10:00:00.123456+00:00",
-    "updated_at": "2025-07-25T10:00:00.123456+00:00"
+    "paymentMethod": "Debit Card",
+    "taxAmount": 1.27,
+    "receiptImageUrl": null,
+    "createdAt": "2025-07-25T10:00:00Z",
+    "updatedAt": "2025-07-25T10:00:00Z"
   }
 ]
 ```
 
-#### Fetch Recent Expenses
-```http
-GET https://{PROJECT_ID}.supabase.co/rest/v1/expenses?order=created_at.desc&limit=10
-Authorization: Bearer {SUPABASE_ANON_KEY}
-apikey: {SUPABASE_ANON_KEY}
-Content-Type: application/json
-```
+#### Backup Tracking
+The app tracks backup status using:
+- **Key**: `"LastBackupDate"`
+- **Value**: Date timestamp of last data save
+- **Usage**: Determines backup status indicators in settings
 
-**Response (200 OK):**
-```json
-[
-  {
-    "id": "123e4567-e89b-12d3-a456-426614174000",
-    "date": "2025-07-25T10:00:00+00:00",
-    "merchant": "Pak Enterprises",
-    "amount": 19.46,
-    "currency": "EUR",
-    "category": "Shopping",
-    "description": "Anjappar Idli Rava, Fresh Chillies, TRS Urid Whole Gota",
-    "payment_method": "Debit Card",
-    "tax_amount": 1.27,
-    "receipt_image_url": null,
-    "created_at": "2025-07-25T10:00:00.123456+00:00",
-    "updated_at": "2025-07-25T10:00:00.123456+00:00"
-  }
-]
-```
+#### Future Migration Path
+The current UserDefaults implementation is designed for easy migration to Core Data + CloudKit:
 
-#### Get Total Expenses
-```http
-GET https://{PROJECT_ID}.supabase.co/rest/v1/expenses?select=amount
-Authorization: Bearer {SUPABASE_ANON_KEY}
-apikey: {SUPABASE_ANON_KEY}
-Content-Type: application/json
-```
+```swift
+// Current: UserDefaults JSON storage
+let data = try JSONEncoder().encode(expenses)
+userDefaults.set(data, forKey: expensesKey)
 
-**Response (200 OK):**
-```json
-[
-  {"amount": 19.46},
-  {"amount": 25.99},
-  {"amount": 12.50}
-]
-```
-
-#### Get Monthly Total
-```http
-GET https://{PROJECT_ID}.supabase.co/rest/v1/expenses?select=amount&date=gte.2025-07-01T00:00:00Z&date=lt.2025-08-01T00:00:00Z
-Authorization: Bearer {SUPABASE_ANON_KEY}
-apikey: {SUPABASE_ANON_KEY}
-Content-Type: application/json
-```
-
-**Response (200 OK):**
-```json
-[
-  {"amount": 19.46},
-  {"amount": 25.99}
-]
-```
-
-#### Connection Test
-```http
-GET https://{PROJECT_ID}.supabase.co/rest/v1/
-Authorization: Bearer {SUPABASE_ANON_KEY}
-apikey: {SUPABASE_ANON_KEY}
-Content-Type: application/json
-```
-
-**Response (200 OK or 404 Not Found - both indicate valid connection):**
-```json
-{
-  "message": "ok"
-}
-```
-
-## Database Schema
-
-### Expenses Table
-```sql
-CREATE TABLE expenses (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    date TIMESTAMP WITH TIME ZONE NOT NULL,
-    merchant TEXT NOT NULL,
-    amount DECIMAL(10,2) NOT NULL,
-    currency TEXT NOT NULL DEFAULT 'USD',
-    category TEXT NOT NULL,
-    description TEXT,
-    payment_method TEXT,
-    tax_amount DECIMAL(10,2),
-    receipt_image_url TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-```
-
-### Reference Tables
-```sql
--- Categories
-CREATE TABLE expense_categories (
-    id SERIAL PRIMARY KEY,
-    name TEXT UNIQUE NOT NULL,
-    icon TEXT,
-    color TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Payment Methods
-CREATE TABLE payment_methods (
-    id SERIAL PRIMARY KEY,
-    name TEXT UNIQUE NOT NULL,
-    icon TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-```
-
-### Indexes
-```sql
-CREATE INDEX idx_expenses_date ON expenses(date);
-CREATE INDEX idx_expenses_category ON expenses(category);
-CREATE INDEX idx_expenses_merchant ON expenses(merchant);
-CREATE INDEX idx_expenses_created_at ON expenses(created_at);
-```
-
-### Row Level Security
-```sql
-ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Allow all operations on expenses" ON expenses
-    FOR ALL USING (true) WITH CHECK (true);
+// Future: Core Data + CloudKit
+// Will maintain same Expense model structure
+// CloudKit will provide automatic iCloud sync
 ```
 
 ## Data Models
@@ -377,25 +273,18 @@ struct OpenAIResponse: Codable {
 }
 ```
 
-#### Supabase Models
+#### Backup Status Model
 ```swift
-struct SupabaseExpense: Codable {
-    let id: UUID?
-    let date: String
-    let merchant: String
-    let amount: Double
-    let currency: String
-    let category: String
-    let description: String?
-    let payment_method: String?
-    let tax_amount: Double?
-    let receipt_image_url: String?
-    let created_at: String?
-    let updated_at: String?
-}
-
-struct SupabaseAmountOnly: Codable {
-    let amount: Double
+enum BackupStatus {
+    case noData
+    case current      // Less than 1 hour since backup
+    case recent       // Less than 24 hours since backup
+    case outdated     // More than 24 hours since backup
+    case notBackedUp  // No backup date found
+    
+    var displayText: String { /* Status text for UI */ }
+    var color: Color { /* Color indicator for status */ }
+    var icon: String { /* SF Symbol for status */ }
 }
 ```
 
@@ -415,8 +304,6 @@ func deleteAll() -> Bool
 #### Keychain Keys
 ```swift
 enum KeychainKey: String {
-    case supabaseUrl = "supabase_url"
-    case supabaseKey = "supabase_key"
     case openaiKey = "openai_key"
 }
 ```
@@ -426,16 +313,14 @@ Handles API credential validation and connection testing.
 
 #### Key Methods
 ```swift
-func saveConfiguration(supabaseUrl: String, supabaseKey: String, openaiKey: String) async -> Bool
+func saveConfiguration(openaiKey: String) async -> Bool
 func testConnections() async
-private func testSupabaseConnection() async -> (success: Bool, error: String?)
 private func testOpenAIConnection() async -> (success: Bool, error: String?)
 ```
 
 #### Connection Test Logic
-1. **Supabase Test**: GET request to `/rest/v1/` endpoint
-2. **OpenAI Test**: GET request to `/v1/models` endpoint
-3. **Status Codes**: 200/404 = success, 401 = invalid key, others = error
+1. **OpenAI Test**: GET request to `/v1/models` endpoint
+2. **Status Codes**: 200 = success, 401 = invalid key, others = error
 
 ### OpenAIService
 Processes receipt images using GPT-4o Vision API.
@@ -455,38 +340,28 @@ private func parseExpenseExtraction(from content: String) throws -> OpenAIExpens
 5. Parse JSON response and validate data
 6. Clean markdown formatting if present
 
-### SupabaseService
-Manages all database operations with Supabase.
-
-#### Key Methods
-```swift
-func createExpense(_ expense: Expense) async throws -> Expense
-func fetchExpenses(limit: Int?, offset: Int?) async throws -> [Expense]
-func getTotalExpenses() async throws -> Double
-func getMonthlyTotal() async throws -> Double
-```
-
-#### Request Headers
-```swift
-private var headers: [String: String] {
-    return [
-        "Authorization": "Bearer \(apiKey)",
-        "apikey": apiKey,
-        "Content-Type": "application/json",
-        "Prefer": "return=representation"
-    ]
-}
-```
-
 ### ExpenseService
-Main service coordinator that orchestrates the complete workflow.
+Main service coordinator implemented as a singleton that manages local data storage and orchestrates the complete workflow.
 
 #### Key Methods
 ```swift
+// Receipt Processing
 func processReceiptPhotos(_ photoItems: [PhotosPickerItem]) async -> Int
-func fetchRecentExpenses(limit: Int = 10) async throws -> [Expense]
-func getTotalExpenses() async throws -> Double
-func getMonthlyTotal() async throws -> Double
+
+// Local Data Operations
+func addExpense(_ expense: Expense) -> Expense
+func deleteExpense(_ expense: Expense)
+func getTotalExpenses() -> Double
+func getMonthlyTotal() -> Double
+
+// Backup Status Tracking
+func getBackupStatus() -> BackupStatus
+func getLastBackupDate() -> Date?
+func isDataBackedUp() -> Bool
+
+// Photo Management
+func deletePhotoFromLibrary(_ processedPhoto: ProcessedPhoto) async -> Bool
+func clearProcessedPhotos()
 ```
 
 #### Processing Completion Dialog
@@ -496,8 +371,30 @@ After successful photo processing, the app displays a completion dialog with opt
 
 #### Published Properties
 ```swift
-@Published var showProcessingCompletionDialog = false
-@Published var processedPhotoCount = 0
+@Published var expenses: [Expense] = []                    // Real-time expense data
+@Published var isLoading = false                           // Loading states
+@Published var errorMessage: String?                       // Error handling
+@Published var processedPhotos: [ProcessedPhoto] = []      // Processed photo tracking
+@Published var showProcessingCompletionDialog = false      // Post-processing dialog
+@Published var processedPhotoCount = 0                     // Count for completion dialog
+```
+
+#### Local Storage Implementation
+```swift
+private func loadExpensesFromUserDefaults() {
+    if let data = userDefaults.data(forKey: expensesKey),
+       let decodedExpenses = try? JSONDecoder().decode([Expense].self, from: data) {
+        self.expenses = decodedExpenses
+    }
+}
+
+private func saveExpensesToUserDefaults() {
+    if let data = try? JSONEncoder().encode(expenses) {
+        userDefaults.set(data, forKey: expensesKey)
+        // Update backup timestamp when data is saved
+        userDefaults.set(Date(), forKey: lastBackupKey)
+    }
+}
 ```
 
 ## User Interface
@@ -517,19 +414,36 @@ ExpenseManagerApp
 
 #### ConfigurationView
 - **Purpose**: First-time setup and credential management
-- **Fields**: Supabase URL, Supabase Key, OpenAI Key
+- **Fields**: OpenAI API Key only
 - **Features**: Connection testing, validation, secure storage
 
 #### OverviewView
-- **Purpose**: Main app interface
+- **Purpose**: Main app interface with real-time data updates
 - **Sections**: 
-  - Summary cards with totals
+  - Summary cards with computed totals (automatically update)
   - PhotosPicker for receipt selection
-  - Processed photos tracking
-  - Recent expenses list
+  - Processed photos tracking with deletion options
+  - Recent expenses list with swipe-to-delete
 - **Dialogs**: 
   - Processing completion dialog with photo management options
   - "Not Now" and "Go to Photos" buttons for user choice
+  - Delete confirmation dialogs
+
+#### AllExpensesView
+- **Purpose**: Complete expense management interface
+- **Features**:
+  - Search functionality across merchants, categories, and descriptions
+  - Sort by creation date (newest first)
+  - Swipe-to-delete and context menu actions
+  - Delete confirmation dialogs
+
+#### SettingsView
+- **Purpose**: App configuration and status monitoring
+- **Sections**:
+  - OpenAI connection status with test functionality
+  - Configuration management (OpenAI API key)
+  - Backup status indicator with color-coded status
+  - App information (version, storage type, AI service)
 
 #### Summary Cards
 ```swift
@@ -554,14 +468,14 @@ struct ExpenseRowView: View {
 ### 1. Initial Setup Workflow
 ```mermaid
 graph TD
-    A[App Launch] --> B{Configured?}
+    A[App Launch] --> B{OpenAI API Key Configured?}
     B -->|No| C[Show Configuration View]
     B -->|Yes| D[Show Overview]
-    C --> E[Enter Credentials]
-    E --> F[Test Connections]
-    F --> G{Test Success?}
+    C --> E[Enter OpenAI API Key]
+    E --> F[Test OpenAI Connection]
+    F --> G{Connection Success?}
     G -->|Yes| H[Save to Keychain]
-    G -->|No| I[Show Error]
+    G -->|No| I[Show Error Message]
     H --> D
     I --> E
 ```
@@ -574,8 +488,8 @@ graph TD
     C --> D[Send to OpenAI]
     D --> E[Parse JSON Response]
     E --> F[Create Expense Object]
-    F --> G[Save to Supabase]
-    G --> H[Update UI]
+    F --> G[Save to Local Storage]
+    G --> H[Update UI via @Published]
     H --> I[Show Completion Dialog]
     I --> J{User Choice}
     J -->|Not Now| K[Keep Photos]
@@ -584,18 +498,20 @@ graph TD
     L --> M
 ```
 
-### 3. Data Loading Workflow
+### 3. Real-time Data Updates Workflow
 ```mermaid
 graph TD
-    A[View Appears] --> B[Fetch Recent Expenses]
-    A --> C[Get Total Expenses]
-    A --> D[Get Monthly Total]
-    B --> E[Update Recent List]
-    C --> F[Update Total Card]
-    D --> G[Update Monthly Card]
-    E --> H[Refresh Complete]
+    A[ExpenseService.shared] --> B[Load from UserDefaults]
+    B --> C[@Published expenses array]
+    C --> D[Computed Properties]
+    D --> E[totalExpenses]
+    D --> F[monthlyTotal]
+    D --> G[recentExpenses]
+    E --> H[Auto-update Summary Cards]
     F --> H
-    G --> H
+    G --> I[Auto-update Recent List]
+    H --> J[UI Updates Automatically]
+    I --> J
 ```
 
 ## Setup Instructions
@@ -603,30 +519,21 @@ graph TD
 ### Prerequisites
 - iOS 17.0+
 - Xcode 15.0+
-- Supabase account and project
 - OpenAI API account with GPT-4o access
 
-### 1. Database Setup
-1. Create new Supabase project
-2. Run the SQL schema from `supabase_schema.sql`
-3. Configure Row Level Security policies
-4. Note your project URL and anon key
-
-### 2. OpenAI Setup
+### 1. OpenAI Setup
 1. Create OpenAI account
 2. Generate API key with GPT-4o access
 3. Ensure sufficient credits/quota
 
-### 3. App Configuration
+### 2. App Configuration
 1. Open project in Xcode
 2. Build and run the app
 3. On first launch, enter:
-   - **Supabase URL**: `https://xxx.supabase.co`
-   - **Supabase Anon Key**: Your public anon key
-   - **OpenAI API Key**: Your OpenAI API key
-4. Test connections to verify setup
+   - **OpenAI API Key**: Your OpenAI API key with GPT-4o access
+4. Test connection to verify setup
 
-### 4. Info.plist Requirements
+### 3. Info.plist Requirements
 ```xml
 <key>NSPhotoLibraryUsageDescription</key>
 <string>This app needs access to your photo library to delete processed receipt photos after successful expense tracking.</string>
@@ -643,7 +550,7 @@ graph TD
 ### API Security
 - **HTTPS Only**: All API communications use TLS
 - **Bearer Tokens**: OpenAI uses Bearer authentication
-- **Row Level Security**: Supabase RLS enabled for data protection
+- **Local Storage**: Data stored locally on device, no external database
 - **No Logging**: Sensitive data never logged in production
 
 ### Privacy
@@ -667,28 +574,32 @@ enum OpenAIError: LocalizedError {
 }
 ```
 
-### Supabase Errors
+### Local Storage Errors
 ```swift
-enum SupabaseError: LocalizedError {
-    case missingCredentials
-    case unauthorized
-    case invalidURL
+enum LocalStorageError: LocalizedError {
     case encodingFailed
     case decodingFailed
-    case invalidResponse
-    case notFound
-    case clientError(Int)
-    case serverError(Int)
-    case unknownError(Int)
-    case noDataReturned
+    case dataCorrupted
+    case insufficientStorage
+    
+    var errorDescription: String? {
+        switch self {
+        case .encodingFailed: return "Failed to encode expense data"
+        case .decodingFailed: return "Failed to decode expense data"
+        case .dataCorrupted: return "Stored expense data is corrupted"
+        case .insufficientStorage: return "Insufficient device storage"
+        }
+    }
 }
 ```
 
 ### Error Recovery Strategies
 1. **Network Errors**: Retry with exponential backoff
-2. **Authentication**: Prompt for credential re-entry
+2. **Authentication**: Prompt for OpenAI API key re-entry
 3. **Parsing Errors**: Log details and show user-friendly message
 4. **Rate Limits**: Inform user and suggest retry later
+5. **Storage Errors**: Attempt data recovery from UserDefaults
+6. **Data Corruption**: Clear corrupted data and start fresh
 
 ## Troubleshooting
 
@@ -697,10 +608,9 @@ enum SupabaseError: LocalizedError {
 #### 1. Connection Test Failures
 **Symptoms**: "Invalid API key" or "Connection failed"
 **Solutions**:
-- Verify API credentials are correct
+- Verify OpenAI API key is correct
 - Check internet connectivity
-- Ensure Supabase project is active
-- Verify OpenAI account has credits
+- Verify OpenAI account has credits and GPT-4o access
 
 #### 2. Receipt Processing Errors
 **Symptoms**: "Failed to process receipts"
@@ -710,13 +620,13 @@ enum SupabaseError: LocalizedError {
 - Check API usage limits and quotas
 - Try with different receipt images
 
-#### 3. Database Errors
-**Symptoms**: "Database error" or "Failed to load expenses"
+#### 3. Local Storage Errors
+**Symptoms**: "Failed to load expenses" or "Data corrupted"
 **Solutions**:
-- Verify Supabase schema is properly set up
-- Check Row Level Security policies
-- Ensure API key has necessary permissions
-- Verify database connection
+- Check device storage space
+- Restart the app to reload from UserDefaults
+- Clear app data if corruption persists (Settings > General > iPhone Storage > Expense Manager > Offload App)
+- Ensure iOS is up to date
 
 #### 4. Photo Selection Issues
 **Symptoms**: Photos not loading or processing
@@ -729,9 +639,10 @@ enum SupabaseError: LocalizedError {
 ### Debug Logging
 The app includes comprehensive logging for troubleshooting:
 - OpenAI request/response logging
-- Supabase query logging
+- Local storage operations
 - Photo processing status
 - Error details with context
+- Backup status tracking
 
 ### Performance Considerations
 - **Image Compression**: Photos compressed to 80% JPEG quality
@@ -749,9 +660,36 @@ The app includes comprehensive logging for troubleshooting:
 - **Rate Limits**: Varies by account tier
 - **Optimization**: Single request per receipt
 
-### Supabase
-- **Free Tier**: 500MB database, 2GB bandwidth
-- **Pricing**: Pay-as-you-scale
-- **Optimization**: Efficient queries with selected fields
+### Local Storage
+- **Storage**: UserDefaults (preparing for Core Data + CloudKit)
+- **Capacity**: Limited by device storage
+- **Sync**: Future iCloud sync with CloudKit implementation
+- **Backup**: Automatic timestamp tracking for backup status
+
+## Future Roadmap
+
+### Planned Enhancements
+1. **Core Data + CloudKit Migration**
+   - Replace UserDefaults with Core Data for better performance
+   - Implement CloudKit for automatic iCloud sync
+   - Maintain current data model structure
+
+2. **Enhanced Photo Management**
+   - Photo storage in iCloud Photos
+   - Receipt image thumbnails in expense list
+   - Bulk photo processing improvements
+
+3. **Advanced Features**
+   - Expense categorization improvements
+   - Monthly/yearly reporting
+   - Export to CSV/PDF
+   - Budget tracking and alerts
+
+### Migration Path
+The current architecture is designed for seamless migration:
+- **Data Model**: Expense struct compatible with Core Data
+- **Storage Pattern**: Easy transition from UserDefaults to Core Data
+- **UI Components**: Already use @Published properties for reactive updates
+- **Backup System**: Ready for CloudKit sync integration
 
 This documentation provides a complete reference for understanding, maintaining, and extending the Expense Manager iOS application.

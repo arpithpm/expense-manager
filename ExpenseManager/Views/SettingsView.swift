@@ -1,17 +1,24 @@
 import SwiftUI
 import Foundation
+import MessageUI
 
 struct SettingsView: View {
     @EnvironmentObject var configurationManager: ConfigurationManager
+    @ObservedObject private var expenseService = ExpenseService.shared
     @State private var showingConfigurationSheet = false
     @State private var showingClearAlert = false
     @State private var showingSuccessAlert = false
+    @State private var showingMailComposer = false
+    @State private var showingMailAlert = false
+    @State private var showingEmailOptions = false
     
     var body: some View {
         NavigationView {
             List {
                 connectionStatusSection
                 configurationSection
+                backupStatusSection
+                feedbackSection
                 aboutSection
             }
             .navigationTitle("Settings")
@@ -28,21 +35,53 @@ struct SettingsView: View {
                 showingSuccessAlert = true
             }
         } message: {
-            Text("This will remove all stored API credentials. You'll need to reconfigure them to use the app.")
+            Text("This will remove your stored OpenAI API key. You'll need to reconfigure it to use the app.")
         }
         .alert("Success", isPresented: $showingSuccessAlert) {
             Button("OK") { }
         } message: {
             Text("Configuration cleared successfully.")
         }
+        .sheet(isPresented: $showingMailComposer) {
+            MailComposerView(
+                recipient: "arpithpmuddi@gmail.com",
+                subject: "Expense Manager App Feedback",
+                body: "Hi there,\n\nI have some feedback about the Expense Manager app:\n\n"
+            )
+        }
+        .alert("Email Not Available", isPresented: $showingMailAlert) {
+            Button("OK") { }
+        } message: {
+            Text("Please make sure you have configured Mail app on your device to send feedback.")
+        }
+        .confirmationDialog("Choose Email App", isPresented: $showingEmailOptions, titleVisibility: .visible) {
+            Button("Mail App") {
+                openMailApp()
+            }
+            Button("Gmail") {
+                openGmail()
+            }
+            Button("Outlook") {
+                openOutlook()
+            }
+            Button("Yahoo Mail") {
+                openYahooMail()
+            }
+            Button("Copy Email Address") {
+                copyEmailAddress()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Select your preferred email app to send feedback")
+        }
     }
     
     private var connectionStatusSection: some View {
-        Section("Connection Status") {
+        Section("OpenAI Connection Status") {
             HStack {
-                Image(systemName: "network")
+                Image(systemName: "brain")
                     .foregroundColor(.accentColor)
-                Text("API Connections")
+                Text("OpenAI API")
                 Spacer()
                 connectionStatusIndicator
             }
@@ -54,7 +93,7 @@ struct SettingsView: View {
                     .multilineTextAlignment(.leading)
             }
             
-            Button("Test Connections") {
+            Button("Test Connection") {
                 Task {
                     await configurationManager.testConnections()
                 }
@@ -90,7 +129,7 @@ struct SettingsView: View {
                 HStack {
                     Image(systemName: "gear")
                         .foregroundColor(.accentColor)
-                    Text("Reconfigure APIs")
+                    Text("Configure OpenAI API")
                     Spacer()
                     Image(systemName: "chevron.right")
                         .foregroundColor(.secondary)
@@ -112,6 +151,132 @@ struct SettingsView: View {
         }
     }
     
+    private var backupStatusSection: some View {
+        Section("Data Backup") {
+            HStack {
+                Image(systemName: backupStatus.icon)
+                    .foregroundColor(backupStatus.color)
+                Text("Backup Status")
+                Spacer()
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(backupStatus.displayText)
+                        .foregroundColor(backupStatus.color)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    
+                    if let lastBackup = expenseService.getLastBackupDate() {
+                        Text(formatBackupDate(lastBackup))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            
+            HStack {
+                Image(systemName: "doc.text")
+                    .foregroundColor(.accentColor)
+                Text("Expenses Count")
+                Spacer()
+                Text("\(expenseService.expenses.count)")
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+    
+    private var backupStatus: BackupStatus {
+        expenseService.getBackupStatus()
+    }
+    
+    private func formatBackupDate(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return "Last: \(formatter.localizedString(for: date, relativeTo: Date()))"
+    }
+    
+    private var feedbackSection: some View {
+        Section("Feedback") {
+            Button(action: {
+                sendFeedback()
+            }) {
+                HStack {
+                    Image(systemName: "envelope")
+                        .foregroundColor(.accentColor)
+                    Text("Send Feedback")
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.secondary)
+                        .font(.caption)
+                }
+            }
+            .foregroundColor(.primary)
+        }
+    }
+    
+    private func sendFeedback() {
+        showingEmailOptions = true
+    }
+    
+    private func openMailApp() {
+        if MFMailComposeViewController.canSendMail() {
+            showingMailComposer = true
+        } else {
+            showingMailAlert = true
+        }
+    }
+    
+    private func openGmail() {
+        let subject = "Expense Manager App Feedback"
+        let body = "Hi there,\n\nI have some feedback about the Expense Manager app:\n\n"
+        let encodedSubject = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let encodedBody = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        
+        // Gmail URL scheme format
+        if let gmailURL = URL(string: "googlegmail://co?to=arpithpmuddi@gmail.com&subject=\(encodedSubject)&body=\(encodedBody)"),
+           UIApplication.shared.canOpenURL(gmailURL) {
+            UIApplication.shared.open(gmailURL)
+        } else {
+            // Fallback to web Gmail
+            if let webGmailURL = URL(string: "https://mail.google.com/mail/?view=cm&fs=1&to=arpithpmuddi@gmail.com&subject=\(encodedSubject)&body=\(encodedBody)") {
+                UIApplication.shared.open(webGmailURL)
+            }
+        }
+    }
+    
+    private func openOutlook() {
+        let subject = "Expense Manager App Feedback"
+        let body = "Hi there,\n\nI have some feedback about the Expense Manager app:\n\n"
+        let encodedSubject = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let encodedBody = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        
+        if let outlookURL = URL(string: "ms-outlook://compose?to=arpithpmuddi@gmail.com&subject=\(encodedSubject)&body=\(encodedBody)"),
+           UIApplication.shared.canOpenURL(outlookURL) {
+            UIApplication.shared.open(outlookURL)
+        } else if let webOutlookURL = URL(string: "https://outlook.live.com/mail/0/deeplink/compose?to=arpithpmuddi@gmail.com&subject=\(encodedSubject)&body=\(encodedBody)") {
+            UIApplication.shared.open(webOutlookURL)
+        }
+    }
+    
+    private func openYahooMail() {
+        let subject = "Expense Manager App Feedback"
+        let body = "Hi there,\n\nI have some feedback about the Expense Manager app:\n\n"
+        let encodedSubject = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let encodedBody = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        
+        if let yahooURL = URL(string: "ymail://mail/compose?to=arpithpmuddi@gmail.com&subject=\(encodedSubject)&body=\(encodedBody)"),
+           UIApplication.shared.canOpenURL(yahooURL) {
+            UIApplication.shared.open(yahooURL)
+        } else if let webYahooURL = URL(string: "https://compose.mail.yahoo.com/?to=arpithpmuddi@gmail.com&subject=\(encodedSubject)&body=\(encodedBody)") {
+            UIApplication.shared.open(webYahooURL)
+        }
+    }
+    
+    private func copyEmailAddress() {
+        UIPasteboard.general.string = "arpithpmuddi@gmail.com"
+        // Show a brief feedback that email was copied
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+    }
+    
     private var aboutSection: some View {
         Section("About") {
             HStack {
@@ -124,11 +289,11 @@ struct SettingsView: View {
             }
             
             HStack {
-                Image(systemName: "doc.text")
+                Image(systemName: "icloud")
                     .foregroundColor(.accentColor)
-                Text("Database")
+                Text("Storage")
                 Spacer()
-                Text("Supabase")
+                Text("Local + iCloud")
                     .foregroundColor(.secondary)
             }
             
@@ -147,8 +312,6 @@ struct SettingsView: View {
 struct ReconfigurationView: View {
     @EnvironmentObject var configurationManager: ConfigurationManager
     @Environment(\.dismiss) private var dismiss
-    @State private var supabaseUrl: String = ""
-    @State private var supabaseKey: String = ""
     @State private var openaiKey: String = ""
     @State private var showingAlert = false
     @State private var alertMessage = ""
@@ -164,7 +327,7 @@ struct ReconfigurationView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 24)
             }
-            .navigationTitle("Reconfigure APIs")
+            .navigationTitle("Configure OpenAI")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -199,30 +362,6 @@ struct ReconfigurationView: View {
     
     private var configurationForm: some View {
         VStack(spacing: 20) {
-            GroupBox("Supabase Configuration") {
-                VStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Supabase URL")
-                            .font(.headline)
-                        TextField("https://xxx.supabase.co", text: $supabaseUrl)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .autocapitalization(.none)
-                            .autocorrectionDisabled()
-                            .keyboardType(.URL)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Supabase Anon Key")
-                            .font(.headline)
-                        SecureField("eyJhbGciOiJIUzI1NiIsInR5cCI6...", text: $supabaseKey)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .autocapitalization(.none)
-                            .autocorrectionDisabled()
-                    }
-                }
-                .padding(.vertical, 8)
-            }
-            
             GroupBox("OpenAI Configuration") {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("OpenAI API Key")
@@ -231,11 +370,15 @@ struct ReconfigurationView: View {
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .autocapitalization(.none)
                         .autocorrectionDisabled()
+                    
+                    Text("Required for AI-powered receipt processing")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
                 .padding(.vertical, 8)
             }
             
-            Button("Test Connections") {
+            Button("Test Connection") {
                 Task {
                     await testConnections()
                 }
@@ -266,7 +409,7 @@ struct ReconfigurationView: View {
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.green)
-                        Text("All connections successful!")
+                        Text("OpenAI connection successful!")
                             .font(.subheadline)
                             .foregroundColor(.green)
                     }
@@ -287,8 +430,6 @@ struct ReconfigurationView: View {
     }
     
     private var isFieldsEmpty: Bool {
-        supabaseUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-        supabaseKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
         openaiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     
@@ -300,8 +441,6 @@ struct ReconfigurationView: View {
     }
     
     private func loadCurrentConfiguration() {
-        supabaseUrl = configurationManager.getSupabaseUrl() ?? ""
-        supabaseKey = configurationManager.getSupabaseKey() ?? ""
         openaiKey = configurationManager.getOpenAIKey() ?? ""
     }
     
@@ -309,8 +448,6 @@ struct ReconfigurationView: View {
         isProcessing = true
         
         let success = await configurationManager.saveConfiguration(
-            supabaseUrl: supabaseUrl,
-            supabaseKey: supabaseKey,
             openaiKey: openaiKey
         )
         
@@ -328,8 +465,6 @@ struct ReconfigurationView: View {
         isProcessing = true
         
         let success = await configurationManager.saveConfiguration(
-            supabaseUrl: supabaseUrl,
-            supabaseKey: supabaseKey,
             openaiKey: openaiKey
         )
         
@@ -344,7 +479,44 @@ struct ReconfigurationView: View {
     }
 }
 
+struct MailComposerView: UIViewControllerRepresentable {
+    let recipient: String
+    let subject: String
+    let body: String
+    @Environment(\.dismiss) private var dismiss
+    
+    func makeUIViewController(context: Context) -> MFMailComposeViewController {
+        let mailComposer = MFMailComposeViewController()
+        mailComposer.mailComposeDelegate = context.coordinator
+        mailComposer.setToRecipients([recipient])
+        mailComposer.setSubject(subject)
+        mailComposer.setMessageBody(body, isHTML: false)
+        return mailComposer
+    }
+    
+    func updateUIViewController(_ uiViewController: MFMailComposeViewController, context: Context) {
+        // No updates needed
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, MFMailComposeViewControllerDelegate {
+        let parent: MailComposerView
+        
+        init(_ parent: MailComposerView) {
+            self.parent = parent
+        }
+        
+        func mailComposeController(_ controller: MFMailComposeViewController, didFinishWith result: MFMailComposeResult, error: Error?) {
+            parent.dismiss()
+        }
+    }
+}
+
 #Preview {
     SettingsView()
         .environmentObject(ConfigurationManager())
 }
+
