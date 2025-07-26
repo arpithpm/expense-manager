@@ -45,7 +45,7 @@ struct OverviewView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
             }
-            .navigationTitle("My Expenses")
+            .navigationTitle("ReceiptRadar")
             .navigationBarTitleDisplayMode(.large)
             .refreshable {
                 // Data refreshes automatically through @Published properties

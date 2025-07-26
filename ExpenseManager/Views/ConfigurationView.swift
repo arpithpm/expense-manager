@@ -36,7 +36,7 @@ struct ConfigurationView: View {
                 .font(.system(size: 60))
                 .foregroundColor(.accentColor)
             
-            Text("Welcome to Expense Manager")
+            Text("Welcome to ReceiptRadar")
                 .font(.title2)
                 .fontWeight(.bold)
                 .multilineTextAlignment(.center)

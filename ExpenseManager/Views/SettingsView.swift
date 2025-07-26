@@ -45,8 +45,8 @@ struct SettingsView: View {
         .sheet(isPresented: $showingMailComposer) {
             MailComposerView(
                 recipient: "arpithpmuddi@gmail.com",
-                subject: "Expense Manager App Feedback",
-                body: "Hi there,\n\nI have some feedback about the Expense Manager app:\n\n"
+                subject: "ReceiptRadar App Feedback",
+                body: "Hi there,\n\nI have some feedback about the ReceiptRadar app:\n\n"
             )
         }
         .alert("Email Not Available", isPresented: $showingMailAlert) {
@@ -225,8 +225,8 @@ struct SettingsView: View {
     }
     
     private func openGmail() {
-        let subject = "Expense Manager App Feedback"
-        let body = "Hi there,\n\nI have some feedback about the Expense Manager app:\n\n"
+        let subject = "ReceiptRadar App Feedback"
+        let body = "Hi there,\n\nI have some feedback about the ReceiptRadar app:\n\n"
         let encodedSubject = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let encodedBody = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         
@@ -243,8 +243,8 @@ struct SettingsView: View {
     }
     
     private func openOutlook() {
-        let subject = "Expense Manager App Feedback"
-        let body = "Hi there,\n\nI have some feedback about the Expense Manager app:\n\n"
+        let subject = "ReceiptRadar App Feedback"
+        let body = "Hi there,\n\nI have some feedback about the ReceiptRadar app:\n\n"
         let encodedSubject = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let encodedBody = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         
@@ -257,8 +257,8 @@ struct SettingsView: View {
     }
     
     private func openYahooMail() {
-        let subject = "Expense Manager App Feedback"
-        let body = "Hi there,\n\nI have some feedback about the Expense Manager app:\n\n"
+        let subject = "ReceiptRadar App Feedback"
+        let body = "Hi there,\n\nI have some feedback about the ReceiptRadar app:\n\n"
         let encodedSubject = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let encodedBody = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         

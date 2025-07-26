@@ -1,8 +1,8 @@
-# App Icon Generation Guide
+# ReceiptRadar App Icon Generation Guide
 
 ## Icon Design Description
 
-I've created a clean and crisp app icon with the following design elements:
+I've created a clean and crisp app icon for ReceiptRadar with the following design elements:
 
 ### Visual Elements:
 - **Background**: Blue gradient (#007AFF to #0051D5) - matches iOS design language
@@ -97,4 +97,4 @@ convert app-icon-optimized.svg -resize 40x40 AppIcon-40.png
 ✅ **Visual Hierarchy**: Clear focal points (receipt → dollar → AI sparkles)
 ✅ **Professional**: Suitable for App Store submission
 
-The icon effectively communicates that this is a modern, AI-powered expense tracking app that works with receipts.
+The icon effectively communicates that this is ReceiptRadar - a modern, AI-powered expense tracking app featuring radar-like detection of receipts and expenses.

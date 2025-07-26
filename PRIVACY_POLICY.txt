@@ -1,12 +1,12 @@
-PRIVACY POLICY FOR MY EXPENSES APP
+PRIVACY POLICY FOR RECEIPTRADАР APP
 
 Last Updated: January 26, 2025
 
 INTRODUCTION
 
-This Privacy Policy describes how the My Expenses mobile application ("App", "we", "us", or "our") collects, uses, and protects your information when you use our iOS application. We are committed to protecting your privacy and ensuring the security of your personal and financial information.
+This Privacy Policy describes how the ReceiptRadar mobile application ("App", "we", "us", or "our") collects, uses, and protects your information when you use our iOS application. We are committed to protecting your privacy and ensuring the security of your personal and financial information.
 
-By using the My Expenses app, you agree to the collection and use of information in accordance with this Privacy Policy.
+By using the ReceiptRadar app, you agree to the collection and use of information in accordance with this Privacy Policy.
 
 INFORMATION WE COLLECT
 
@@ -116,7 +116,7 @@ DATA RETENTION
 
 CHILDREN'S PRIVACY
 
-The My Expenses app is not intended for use by children under 13 years of age. We do not knowingly collect personal information from children under 13. If we become aware that we have collected personal information from a child under 13, we will take steps to delete such information.
+The ReceiptRadar app is not intended for use by children under 13 years of age. We do not knowingly collect personal information from children under 13. If we become aware that we have collected personal information from a child under 13, we will take steps to delete such information.
 
 INTERNATIONAL DATA TRANSFERS
 
@@ -144,13 +144,13 @@ CONTACT INFORMATION
 If you have any questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us:
 
 Email: arpithpmuddi@gmail.com
-Subject: My Expenses App - Privacy Policy Inquiry
+Subject: ReceiptRadar App - Privacy Policy Inquiry
 
 We will respond to privacy-related inquiries within 30 days.
 
 CONSENT
 
-By downloading, installing, and using the My Expenses app, you acknowledge that you have read and understood this Privacy Policy and consent to the collection, use, and disclosure of your information as described herein.
+By downloading, installing, and using the ReceiptRadar app, you acknowledge that you have read and understood this Privacy Policy and consent to the collection, use, and disclosure of your information as described herein.
 
 COMPLIANCE
 
@@ -163,4 +163,4 @@ This Privacy Policy is designed to comply with:
 
 ---
 
-This Privacy Policy is effective as of the date listed above and applies to all users of the My Expenses mobile application.
+This Privacy Policy is effective as of the date listed above and applies to all users of the ReceiptRadar mobile application.
