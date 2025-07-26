@@ -683,6 +683,8 @@ class ExpenseService: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var processedPhotos: [ProcessedPhoto] = []
+    @Published var showProcessingCompletionDialog = false
+    @Published var processedPhotoCount = 0
     
     private let supabaseService = SupabaseService.shared
     private let openAIService = OpenAIService.shared
@@ -753,6 +755,12 @@ class ExpenseService: ObservableObject {
                     errorMessage = "Processing failed: \(error.localizedDescription)"
                 }
             }
+        }
+        
+        // Show completion dialog if any photos were processed successfully
+        if processedCount > 0 {
+            processedPhotoCount = processedCount
+            showProcessingCompletionDialog = true
         }
         
         return processedCount

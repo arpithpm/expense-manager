@@ -24,6 +24,7 @@ The Expense Manager is an iOS application that uses AI-powered receipt scanning 
 - **Cloud Storage**: Real-time data synchronization with Supabase
 - **Modern UI**: SwiftUI-based interface with loading states and error handling
 - **Privacy-First**: Manual photo deletion approach respecting user privacy
+- **Smart Photo Management**: Post-processing dialog with options to keep or delete original photos
 
 ## Architecture
 
@@ -488,6 +489,17 @@ func getTotalExpenses() async throws -> Double
 func getMonthlyTotal() async throws -> Double
 ```
 
+#### Processing Completion Dialog
+After successful photo processing, the app displays a completion dialog with options:
+- **Not Now**: Keeps original photos in the user's library
+- **Go to Photos**: Opens the Photos app for manual deletion
+
+#### Published Properties
+```swift
+@Published var showProcessingCompletionDialog = false
+@Published var processedPhotoCount = 0
+```
+
 ## User Interface
 
 ### View Structure
@@ -515,6 +527,9 @@ ExpenseManagerApp
   - PhotosPicker for receipt selection
   - Processed photos tracking
   - Recent expenses list
+- **Dialogs**: 
+  - Processing completion dialog with photo management options
+  - "Not Now" and "Go to Photos" buttons for user choice
 
 #### Summary Cards
 ```swift
@@ -561,7 +576,12 @@ graph TD
     E --> F[Create Expense Object]
     F --> G[Save to Supabase]
     G --> H[Update UI]
-    H --> I[Show Success Message]
+    H --> I[Show Completion Dialog]
+    I --> J{User Choice}
+    J -->|Not Now| K[Keep Photos]
+    J -->|Go to Photos| L[Open Photos App]
+    K --> M[Complete]
+    L --> M
 ```
 
 ### 3. Data Loading Workflow
