@@ -675,44 +675,6 @@ class ExpenseService: ObservableObject {
             return .outdated
         }
     }
-}
-
-enum BackupStatus {
-    case noData
-    case current
-    case recent
-    case outdated
-    case notBackedUp
-    
-    var displayText: String {
-        switch self {
-        case .noData: return "No data to backup"
-        case .current: return "Backed up recently"
-        case .recent: return "Backed up today"
-        case .outdated: return "Backup outdated"
-        case .notBackedUp: return "Not backed up"
-        }
-    }
-    
-    var color: Color {
-        switch self {
-        case .noData: return .secondary
-        case .current: return .green
-        case .recent: return .blue
-        case .outdated: return .orange
-        case .notBackedUp: return .red
-        }
-    }
-    
-    var icon: String {
-        switch self {
-        case .noData: return "doc"
-        case .current: return "checkmark.icloud.fill"
-        case .recent: return "checkmark.icloud"
-        case .outdated: return "exclamationmark.icloud"
-        case .notBackedUp: return "xmark.icloud"
-        }
-    }
     
     // MARK: - First Launch Tracking
     
@@ -790,5 +752,42 @@ enum BackupStatus {
         saveExpensesToUserDefaults()
         print("Added \(sampleExpenses.count) sample expenses for first launch")
     }
+}
+
+enum BackupStatus {
+    case noData
+    case current
+    case recent
+    case outdated
+    case notBackedUp
     
+    var displayText: String {
+        switch self {
+        case .noData: return "No data to backup"
+        case .current: return "Backed up recently"
+        case .recent: return "Backed up today"
+        case .outdated: return "Backup outdated"
+        case .notBackedUp: return "Not backed up"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .noData: return .secondary
+        case .current: return .green
+        case .recent: return .blue
+        case .outdated: return .orange
+        case .notBackedUp: return .red
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .noData: return "doc"
+        case .current: return "checkmark.icloud.fill"
+        case .recent: return "checkmark.icloud"
+        case .outdated: return "exclamationmark.icloud"
+        case .notBackedUp: return "xmark.icloud"
+        }
+    }
 }
