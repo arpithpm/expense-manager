@@ -423,12 +423,19 @@ class ExpenseService: ObservableObject {
     private let userDefaults = UserDefaults.standard
     private let expensesKey = "SavedExpenses"
     private let lastBackupKey = "LastBackupDate"
+    private let firstLaunchKey = "HasLaunchedBefore"
     
     private init() {
         loadExpensesFromUserDefaults()
         // Set initial backup timestamp if we have data but no backup date
         if !expenses.isEmpty && userDefaults.object(forKey: lastBackupKey) == nil {
             userDefaults.set(Date(), forKey: lastBackupKey)
+        }
+        
+        // Add sample data on first launch if no expenses exist
+        if expenses.isEmpty && !hasLaunchedBefore() {
+            addSampleExpenses()
+            markFirstLaunchComplete()
         }
     }
     
@@ -705,6 +712,83 @@ enum BackupStatus {
         case .outdated: return "exclamationmark.icloud"
         case .notBackedUp: return "xmark.icloud"
         }
+    }
+    
+    // MARK: - First Launch Tracking
+    
+    private func hasLaunchedBefore() -> Bool {
+        return userDefaults.bool(forKey: firstLaunchKey)
+    }
+    
+    private func markFirstLaunchComplete() {
+        userDefaults.set(true, forKey: firstLaunchKey)
+    }
+    
+    // MARK: - Sample Data for First Launch
+    
+    private func addSampleExpenses() {
+        let calendar = Calendar.current
+        let now = Date()
+        
+        let sampleExpenses = [
+            Expense(
+                date: calendar.date(byAdding: .day, value: -1, to: now) ?? now,
+                merchant: "Starbucks Coffee",
+                amount: 4.75,
+                currency: "USD",
+                category: "Food & Dining",
+                description: "Morning coffee and pastry",
+                paymentMethod: "Credit Card",
+                taxAmount: 0.38
+            ),
+            Expense(
+                date: calendar.date(byAdding: .day, value: -2, to: now) ?? now,
+                merchant: "Shell Gas Station",
+                amount: 45.20,
+                currency: "USD",
+                category: "Transportation",
+                description: "Fuel",
+                paymentMethod: "Debit Card",
+                taxAmount: 3.62
+            ),
+            Expense(
+                date: calendar.date(byAdding: .day, value: -3, to: now) ?? now,
+                merchant: "Target",
+                amount: 23.99,
+                currency: "USD",
+                category: "Shopping",
+                description: "Household items",
+                paymentMethod: "Credit Card",
+                taxAmount: 1.92
+            ),
+            Expense(
+                date: calendar.date(byAdding: .day, value: -5, to: now) ?? now,
+                merchant: "Chipotle Mexican Grill",
+                amount: 12.85,
+                currency: "USD",
+                category: "Food & Dining",
+                description: "Burrito bowl and drink",
+                paymentMethod: "Digital Payment",
+                taxAmount: 1.03
+            ),
+            Expense(
+                date: calendar.date(byAdding: .day, value: -7, to: now) ?? now,
+                merchant: "Amazon.com",
+                amount: 89.99,
+                currency: "USD",
+                category: "Shopping",
+                description: "Office supplies",
+                paymentMethod: "Credit Card",
+                taxAmount: 7.20
+            )
+        ]
+        
+        for expense in sampleExpenses {
+            expenses.append(expense)
+        }
+        
+        saveExpensesToUserDefaults()
+        print("Added \(sampleExpenses.count) sample expenses for first launch")
     }
     
 }

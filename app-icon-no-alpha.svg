@@ -1,0 +1,86 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Background gradient -->
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#007AFF"/>
+      <stop offset="100%" stop-color="#0051D5"/>
+    </linearGradient>
+    
+    <!-- Receipt gradient -->
+    <linearGradient id="paper" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F2F2F7"/>
+    </linearGradient>
+    
+    <!-- Dollar sign gradient -->
+    <linearGradient id="dollar" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34C759"/>
+      <stop offset="100%" stop-color="#248A3D"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Solid background with rounded corners - NO TRANSPARENCY -->
+  <rect width="1024" height="1024" rx="226" fill="url(#bg)"/>
+  
+  <!-- Receipt paper - SOLID WHITE -->
+  <rect x="256" y="180" width="512" height="720" rx="32" 
+        fill="url(#paper)" 
+        stroke="#E5E5EA" 
+        stroke-width="3"/>
+  
+  <!-- Receipt perforation - SOLID GRAY -->
+  <g fill="#D1D1D6">
+    <circle cx="288" cy="180" r="12"/>
+    <circle cx="336" cy="180" r="12"/>
+    <circle cx="384" cy="180" r="12"/>
+    <circle cx="432" cy="180" r="12"/>
+    <circle cx="480" cy="180" r="12"/>
+    <circle cx="528" cy="180" r="12"/>
+    <circle cx="576" cy="180" r="12"/>
+    <circle cx="624" cy="180" r="12"/>
+    <circle cx="672" cy="180" r="12"/>
+    <circle cx="720" cy="180" r="12"/>
+  </g>
+  
+  <!-- Receipt lines - SOLID GRAY -->
+  <g fill="#C7C7CC">
+    <!-- Store name -->
+    <rect x="320" y="280" width="240" height="20" rx="10"/>
+    
+    <!-- Items -->
+    <rect x="320" y="360" width="384" height="16" rx="8"/>
+    <rect x="320" y="400" width="320" height="16" rx="8"/>
+    <rect x="320" y="440" width="360" height="16" rx="8"/>
+    <rect x="320" y="480" width="280" height="16" rx="8"/>
+    
+    <!-- Divider -->
+    <rect x="320" y="540" width="384" height="6" rx="3"/>
+    
+    <!-- Total -->
+    <rect x="320" y="580" width="180" height="24" rx="12"/>
+  </g>
+  
+  <!-- Amount - SOLID BLACK -->
+  <text x="680" y="605" font-family="system-ui" font-size="48" font-weight="bold" 
+        text-anchor="end" fill="#1D1D1F">$149.99</text>
+  
+  <!-- Dollar circle - SOLID GREEN -->
+  <circle cx="650" cy="400" r="100" fill="url(#dollar)"/>
+  
+  <!-- Dollar sign - SOLID WHITE -->
+  <text x="650" y="440" font-family="system-ui" font-size="120" font-weight="bold" 
+        text-anchor="middle" fill="#FFFFFF">$</text>
+  
+  <!-- AI sparkles - SOLID YELLOW -->
+  <g fill="#FFD60A">
+    <g transform="translate(580, 320)">
+      <path d="M0,-20 L6,-6 L20,0 L6,6 L0,20 L-6,6 L-20,0 L-6,-6Z"/>
+    </g>
+    <g transform="translate(720, 300)">
+      <path d="M0,-12 L3,-3 L12,0 L3,3 L0,12 L-3,3 L-12,0 L-3,-3Z"/>
+    </g>
+    <g transform="translate(540, 480)">
+      <path d="M0,-8 L2,-2 L8,0 L2,2 L0,8 L-2,2 L-8,0 L-2,-2Z"/>
+    </g>
+  </g>
+</svg>

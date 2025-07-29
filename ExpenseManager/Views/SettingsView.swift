@@ -11,6 +11,7 @@ struct SettingsView: View {
     @State private var showingMailComposer = false
     @State private var showingMailAlert = false
     @State private var showingEmailOptions = false
+    @State private var showingSampleDataAlert = false
     
     var body: some View {
         NavigationView {
@@ -19,6 +20,7 @@ struct SettingsView: View {
                 configurationSection
                 backupStatusSection
                 feedbackSection
+                developmentSection
                 aboutSection
             }
             .navigationTitle("Settings")
@@ -73,6 +75,14 @@ struct SettingsView: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("Select your preferred email app to send feedback")
+        }
+        .alert("Add Sample Data", isPresented: $showingSampleDataAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Add Sample Data") {
+                addSampleData()
+            }
+        } message: {
+            Text("This will add 5 sample expenses to help you explore the app. Your existing data will be preserved.")
         }
     }
     
@@ -275,6 +285,91 @@ struct SettingsView: View {
         // Show a brief feedback that email was copied
         let impactFeedback = UIImpactFeedbackGenerator(style: .light)
         impactFeedback.impactOccurred()
+    }
+    
+    private var developmentSection: some View {
+        #if DEBUG
+        Section("Development") {
+            Button(action: {
+                showingSampleDataAlert = true
+            }) {
+                HStack {
+                    Image(systemName: "plus.circle")
+                        .foregroundColor(.orange)
+                    Text("Add Sample Data")
+                    Spacer()
+                    Text("\(expenseService.expenses.count) expenses")
+                        .foregroundColor(.secondary)
+                        .font(.caption)
+                }
+            }
+            .foregroundColor(.primary)
+        }
+        #else
+        EmptyView()
+        #endif
+    }
+    
+    private func addSampleData() {
+        let calendar = Calendar.current
+        let now = Date()
+        
+        let sampleExpenses = [
+            Expense(
+                date: calendar.date(byAdding: .day, value: -1, to: now) ?? now,
+                merchant: "Starbucks Coffee",
+                amount: 4.75,
+                currency: "USD",
+                category: "Food & Dining",
+                description: "Morning coffee and pastry",
+                paymentMethod: "Credit Card",
+                taxAmount: 0.38
+            ),
+            Expense(
+                date: calendar.date(byAdding: .day, value: -2, to: now) ?? now,
+                merchant: "Shell Gas Station",
+                amount: 45.20,
+                currency: "USD",
+                category: "Transportation",
+                description: "Fuel",
+                paymentMethod: "Debit Card",
+                taxAmount: 3.62
+            ),
+            Expense(
+                date: calendar.date(byAdding: .day, value: -3, to: now) ?? now,
+                merchant: "Target",
+                amount: 23.99,
+                currency: "USD",
+                category: "Shopping",
+                description: "Household items",
+                paymentMethod: "Credit Card",
+                taxAmount: 1.92
+            ),
+            Expense(
+                date: calendar.date(byAdding: .day, value: -5, to: now) ?? now,
+                merchant: "Chipotle Mexican Grill",
+                amount: 12.85,
+                currency: "USD",
+                category: "Food & Dining",
+                description: "Burrito bowl and drink",
+                paymentMethod: "Digital Payment",
+                taxAmount: 1.03
+            ),
+            Expense(
+                date: calendar.date(byAdding: .day, value: -7, to: now) ?? now,
+                merchant: "Amazon.com",
+                amount: 89.99,
+                currency: "USD",
+                category: "Shopping",
+                description: "Office supplies",
+                paymentMethod: "Credit Card",
+                taxAmount: 7.20
+            )
+        ]
+        
+        for expense in sampleExpenses {
+            let _ = expenseService.addExpense(expense)
+        }
     }
     
     private var aboutSection: some View {

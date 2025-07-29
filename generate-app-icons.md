@@ -43,30 +43,47 @@ You'll need to generate the following sizes from the SVG:
 
 ## How to Generate Icons
 
-### Option 1: Using Online SVG to PNG Converter
-1. Go to https://svgtopng.com/ or similar service
-2. Upload the `app-icon-optimized.svg` file
-3. Generate PNG files for each required size
-4. Download and rename according to iOS naming conventions
+⚠️ **IMPORTANT: App Store Requirement - NO TRANSPARENCY**
+App Store icons CANNOT have transparency or alpha channels. Use `app-icon-no-alpha.svg` for final production icons.
+
+### Option 1: Using Online SVG to PNG Converter (Recommended)
+1. Go to https://svgtopng.com/ or https://convertio.co/svg-png/
+2. Upload the `app-icon-no-alpha.svg` file
+3. **CRITICAL**: Set background to SOLID (not transparent)
+4. Generate PNG files for each required size
+5. Download and rename according to iOS naming conventions
 
 ### Option 2: Using Design Software
-1. Open `app-icon-optimized.svg` in Adobe Illustrator, Sketch, or Figma
-2. Export as PNG at the required sizes
-3. Ensure the background is not transparent
+1. Open `app-icon-no-alpha.svg` in Adobe Illustrator, Sketch, or Figma
+2. **CRITICAL**: Ensure artboard has SOLID background (no transparency)
+3. Export as PNG at the required sizes with SOLID background
+4. Verify no alpha channel exists in the exported PNGs
 
-### Option 3: Using Command Line (if you have ImageMagick)
+### Option 3: Using Command Line (ImageMagick)
 ```bash
-# Convert SVG to different PNG sizes
-convert app-icon-optimized.svg -resize 1024x1024 AppIcon-1024.png
-convert app-icon-optimized.svg -resize 180x180 AppIcon-180.png
-convert app-icon-optimized.svg -resize 120x120 AppIcon-120.png
-convert app-icon-optimized.svg -resize 87x87 AppIcon-87.png
-convert app-icon-optimized.svg -resize 80x80 AppIcon-80.png
-convert app-icon-optimized.svg -resize 76x76 AppIcon-76.png
-convert app-icon-optimized.svg -resize 60x60 AppIcon-60.png
-convert app-icon-optimized.svg -resize 58x58 AppIcon-58.png
-convert app-icon-optimized.svg -resize 40x40 AppIcon-40.png
+# Convert SVG to PNG with SOLID background (no transparency)
+convert app-icon-no-alpha.svg -background "#007AFF" -flatten -resize 1024x1024 AppIcon-1024.png
+convert app-icon-no-alpha.svg -background "#007AFF" -flatten -resize 180x180 AppIcon-180.png
+convert app-icon-no-alpha.svg -background "#007AFF" -flatten -resize 120x120 AppIcon-120.png
+convert app-icon-no-alpha.svg -background "#007AFF" -flatten -resize 87x87 AppIcon-87.png
+convert app-icon-no-alpha.svg -background "#007AFF" -flatten -resize 80x80 AppIcon-80.png
+convert app-icon-no-alpha.svg -background "#007AFF" -flatten -resize 76x76 AppIcon-76.png
+convert app-icon-no-alpha.svg -background "#007AFF" -flatten -resize 60x60 AppIcon-60.png
+convert app-icon-no-alpha.svg -background "#007AFF" -flatten -resize 58x58 AppIcon-58.png
+convert app-icon-no-alpha.svg -background "#007AFF" -flatten -resize 40x40 AppIcon-40.png
 ```
+
+### Verification Steps
+After generating PNGs, verify they meet App Store requirements:
+
+1. **Check for Transparency**: Open each PNG in Preview or image editor
+2. **Verify Solid Background**: Should have solid blue background, no transparency
+3. **Test Upload**: Try uploading to App Store Connect to confirm acceptance
+
+### Common Issues & Solutions
+- **"Invalid large app icon"**: Icon has transparency → Use `app-icon-no-alpha.svg`
+- **Alpha channel error**: PNG has alpha → Add `-flatten` flag or ensure solid background
+- **Transparent corners**: SVG has transparency → Use the no-alpha version
 
 ## Adding to Xcode Project
 
