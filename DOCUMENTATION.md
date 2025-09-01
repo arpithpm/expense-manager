@@ -24,8 +24,8 @@ The Expense Manager is an iOS application that uses AI-powered receipt scanning 
 - **Local Storage**: Fast, reliable local data storage with UserDefaults
 - **Real-time Updates**: Instant UI updates when data changes
 - **Modern UI**: SwiftUI-based interface with loading states and error handling
-- **Privacy-First**: Manual photo deletion approach respecting user privacy
-- **Smart Photo Management**: Post-processing dialog with options to keep or delete original photos
+- **Privacy-First**: Local data storage with no external database dependencies
+- **Simple Photo Processing**: Photos remain in user's library after processing
 - **Complete CRUD Operations**: Add, view, search, and delete expenses
 - **Backup Status Tracking**: Visual indicators for data backup status
 - **Cross-View Data Consistency**: Singleton pattern ensures data consistency
@@ -360,14 +360,9 @@ func getLastBackupDate() -> Date?
 func isDataBackedUp() -> Bool
 
 // Photo Management
-func deletePhotoFromLibrary(_ processedPhoto: ProcessedPhoto) async -> Bool
 func clearProcessedPhotos()
 ```
 
-#### Processing Completion Dialog
-After successful photo processing, the app displays a completion dialog with options:
-- **Not Now**: Keeps original photos in the user's library
-- **Go to Photos**: Opens the Photos app for manual deletion
 
 #### Published Properties
 ```swift
@@ -375,8 +370,6 @@ After successful photo processing, the app displays a completion dialog with opt
 @Published var isLoading = false                           // Loading states
 @Published var errorMessage: String?                       // Error handling
 @Published var processedPhotos: [ProcessedPhoto] = []      // Processed photo tracking
-@Published var showProcessingCompletionDialog = false      // Post-processing dialog
-@Published var processedPhotoCount = 0                     // Count for completion dialog
 ```
 
 #### Local Storage Implementation
@@ -422,12 +415,10 @@ ExpenseManagerApp
 - **Sections**: 
   - Summary cards with computed totals (automatically update)
   - PhotosPicker for receipt selection
-  - Processed photos tracking with deletion options
+  - Processed photos tracking for status visibility
   - Recent expenses list with swipe-to-delete
 - **Dialogs**: 
-  - Processing completion dialog with photo management options
-  - "Not Now" and "Go to Photos" buttons for user choice
-  - Delete confirmation dialogs
+  - Delete confirmation dialogs for expenses
 
 #### AllExpensesView
 - **Purpose**: Complete expense management interface
@@ -490,12 +481,7 @@ graph TD
     E --> F[Create Expense Object]
     F --> G[Save to Local Storage]
     G --> H[Update UI via @Published]
-    H --> I[Show Completion Dialog]
-    I --> J{User Choice}
-    J -->|Not Now| K[Keep Photos]
-    J -->|Go to Photos| L[Open Photos App]
-    K --> M[Complete]
-    L --> M
+    H --> I[Complete Processing]
 ```
 
 ### 3. Real-time Data Updates Workflow
@@ -536,7 +522,7 @@ graph TD
 ### 3. Info.plist Requirements
 ```xml
 <key>NSPhotoLibraryUsageDescription</key>
-<string>This app needs access to your photo library to delete processed receipt photos after successful expense tracking.</string>
+<string>This app needs access to your photo library to process receipt photos for expense tracking.</string>
 ```
 
 ## Security
@@ -555,7 +541,6 @@ graph TD
 
 ### Privacy
 - **Photo Access**: Minimal permissions, no permanent photo storage
-- **Manual Deletion**: User controls photo deletion
 - **Local Processing**: Images processed locally before API calls
 
 ## Error Handling
