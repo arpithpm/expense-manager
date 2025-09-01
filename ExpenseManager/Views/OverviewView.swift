@@ -1,7 +1,6 @@
 import SwiftUI
 import PhotosUI
 import Foundation
-import Photos
 
 struct OverviewView: View {
     @EnvironmentObject var configurationManager: ConfigurationManager
@@ -58,17 +57,6 @@ struct OverviewView: View {
             Button("OK") { }
         } message: {
             Text(alertMessage)
-        }
-        .alert("Photos Processed Successfully", isPresented: $expenseService.showProcessingCompletionDialog) {
-            Button("Not Now") {
-                expenseService.showProcessingCompletionDialog = false
-            }
-            Button("Go to Photos") {
-                expenseService.showProcessingCompletionDialog = false
-                openPhotosApp()
-            }
-        } message: {
-            Text("Successfully processed \(expenseService.processedPhotoCount) photo\(expenseService.processedPhotoCount == 1 ? "" : "s"). Would you like to delete the original\(expenseService.processedPhotoCount == 1 ? "" : "s") from your Photos library?")
         }
         .alert("Delete Expense", isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) {
@@ -262,11 +250,6 @@ struct OverviewView: View {
     }
     
     
-    private func openPhotosApp() {
-        if let photosURL = URL(string: "photos-redirect://") {
-            UIApplication.shared.open(photosURL)
-        }
-    }
     
     private func deleteExpense(_ expense: Expense) {
         expenseToDelete = expense

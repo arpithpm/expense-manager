@@ -4,7 +4,6 @@ import Combine
 import PhotosUI
 import UIKit
 import Security
-import Photos
 
 // MARK: - Models and Data Structures
 
@@ -416,8 +415,6 @@ class ExpenseService: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var processedPhotos: [ProcessedPhoto] = []
-    @Published var showProcessingCompletionDialog = false
-    @Published var processedPhotoCount = 0
     
     private let openAIService = OpenAIService.shared
     private let userDefaults = UserDefaults.standard
@@ -499,11 +496,6 @@ class ExpenseService: ObservableObject {
             }
         }
         
-        // Show completion dialog if any photos were processed successfully
-        if processedCount > 0 {
-            processedPhotoCount = processedCount
-            showProcessingCompletionDialog = true
-        }
         
         return processedCount
     }
@@ -560,53 +552,6 @@ class ExpenseService: ObservableObject {
         }.reduce(0) { $0 + $1.amount }
     }
     
-    func deletePhotoFromLibrary(_ processedPhoto: ProcessedPhoto) async -> Bool {
-        // First check if we have photo library permissions
-        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        
-        if status != .authorized {
-            // Request permission
-            let newStatus = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
-            if newStatus != .authorized {
-                errorMessage = "Photo library access denied. Please enable in Settings."
-                return false
-            }
-        }
-        
-        // Use the captured asset identifier
-        print("PhotosPickerItem itemIdentifier: \(processedPhoto.photoItem.itemIdentifier ?? "nil")")
-        print("Captured assetIdentifier: \(processedPhoto.assetIdentifier ?? "nil")")
-        
-        guard let assetIdentifier = processedPhoto.assetIdentifier else {
-            errorMessage = "Could not identify photo to delete."
-            return false
-        }
-        print("Using asset identifier: \(assetIdentifier)")
-        
-        // Fetch the PHAsset
-        let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [assetIdentifier], options: nil)
-        guard let asset = fetchResult.firstObject else {
-            errorMessage = "Photo not found in library."
-            return false
-        }
-        
-        // Delete the asset
-        do {
-            try await PHPhotoLibrary.shared().performChanges {
-                PHAssetChangeRequest.deleteAssets([asset] as NSArray)
-            }
-            
-            // Remove from our tracked list
-            if let index = processedPhotos.firstIndex(where: { $0.id == processedPhoto.id }) {
-                processedPhotos.remove(at: index)
-            }
-            
-            return true
-        } catch {
-            errorMessage = "Failed to delete photo: \(error.localizedDescription)"
-            return false
-        }
-    }
     
     func clearProcessedPhotos() {
         processedPhotos.removeAll()
