@@ -702,7 +702,7 @@ struct DataResetView: View {
         .onAppear {
             loadItemCounts()
         }
-        .onChange(of: selectedCategories) { _ in
+        .onChange(of: selectedCategories) {
             updateResetSummary()
         }
     }
