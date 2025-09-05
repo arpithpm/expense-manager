@@ -1,184 +1,259 @@
-# Expense Manager iOS App
+# 🧾 ReceiptRadar - AI-Powered Expense Manager
 
-An intelligent expense tracking iOS application that uses AI-powered receipt scanning with OpenAI Vision API and Supabase for data storage.
+**Transform your receipts into detailed financial insights with AI-powered item-level tracking.**
 
-## 📚 Documentation
+[![iOS](https://img.shields.io/badge/iOS-16.0+-blue.svg)](https://developer.apple.com/ios/)
+[![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org/)
+[![SwiftUI](https://img.shields.io/badge/SwiftUI-5.0+-green.svg)](https://developer.apple.com/xcode/swiftui/)
+[![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o-purple.svg)](https://openai.com/)
 
-For complete technical documentation, API details, and implementation guides, see: **[DOCUMENTATION.md](DOCUMENTATION.md)**
+## ✨ Features
 
-## Features
+### 🔍 **AI-Powered Receipt Processing**
+- **Advanced OCR**: GPT-4o Vision API for accurate text extraction
+- **Intelligent Parsing**: Extracts both basic expense data and detailed item information
+- **Multi-format Support**: Handles various receipt formats and layouts
+- **Error Recovery**: Graceful handling of unclear or damaged receipts
 
-### ✅ Completed Features
+### 📊 **Item-Level Tracking**
+- **Individual Items**: Captures name, quantity, unit price, and total for each item
+- **Smart Categories**: Auto-categorizes items (Food, Beverage, Electronics, etc.)
+- **Detailed Analysis**: Track spending patterns at the most granular level
+- **Price Monitoring**: Monitor item price changes over time
 
-- **Initial Setup & Configuration**
-  - First-time setup screen for API credentials
-  - Secure storage of Supabase URL/key and OpenAI API key using Keychain
-  - Connection testing for both APIs
-  - Settings screen for credential management
+### 💰 **Multi-Currency Support**
+- **Global Ready**: Supports USD, EUR, GBP, and other major currencies
+- **Automatic Detection**: Recognizes currency from receipts
+- **Proper Formatting**: Displays correct currency symbols (€, $, £)
+- **Mixed Currency**: Handle expenses in different currencies
 
-- **Receipt Processing**
-  - Multiple photo selection with PhotosPicker
-  - AI-powered expense extraction using OpenAI Vision API
-  - Comprehensive prompt engineering for accurate data extraction
-  - Support for various receipt types and formats
+### 📈 **Financial Breakdown**
+- **Comprehensive Tracking**: Separates subtotal, taxes, tips, fees, discounts
+- **Transparency**: Clear visibility into all charges
+- **Validation**: Ensures financial breakdowns are accurate
+- **Business Ready**: Detailed itemization for tax purposes
 
-- **Data Management**
-  - Supabase database integration
-  - Complete CRUD operations for expenses
-  - Expense categorization and payment method tracking
-  - Monthly and total expense summaries
+### 🎨 **Enhanced User Experience**
+- **Expandable Views**: Tap expense rows to see detailed item breakdowns
+- **Visual Indicators**: Item count badges and category tags
+- **Advanced Search**: Search by item names, categories, descriptions
+- **Privacy First**: All data stored locally on device
 
-- **User Interface**
-  - Modern SwiftUI design
-  - Overview screen with expense summaries
-  - Recent expenses display
-  - Loading states and progress indicators
-  - Comprehensive error handling and user feedback
-
-## Architecture
-
-### Key Components
-
-1. **ConfigurationManager**: Handles API credential storage and validation
-2. **ExpenseService**: Main service layer for expense operations
-3. **OpenAIService**: Integration with OpenAI Vision API for receipt processing
-4. **SupabaseService**: Database operations and API communication
-5. **KeychainService**: Secure credential storage
-
-### Data Flow
-
-1. User selects receipt photos
-2. Images processed through OpenAI Vision API
-3. Extracted data validated and structured
-4. Expense records stored in Supabase database
-5. UI updated with new expenses
-
-## Setup Instructions
+## 🚀 Quick Start
 
 ### Prerequisites
-
+- iOS 16.0+ device or simulator
 - Xcode 15.0+
-- iOS 17.0+
-- Supabase account and project
-- OpenAI API account
+- OpenAI API key with GPT-4o access
 
-### Database Setup
+### Installation
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/arpithpm/expense-manager.git
+   cd expense-manager
+   ```
 
-1. Create a new Supabase project
-2. Run the SQL schema from `supabase_schema.sql` in your Supabase SQL editor
-3. Enable Row Level Security and configure policies as needed
+2. **Open in Xcode**
+   ```bash
+   open ExpenseManager.xcodeproj
+   ```
 
-### App Configuration
+3. **Configure API Key**
+   - Run the app
+   - Go to Settings tab
+   - Enter your OpenAI API key
+   - Test the connection
 
-1. Open the project in Xcode
-2. Build and run the app
-3. On first launch, enter your credentials:
-   - **Supabase URL**: Your project URL (e.g., `https://xxx.supabase.co`)
-   - **Supabase Anon Key**: Your public anon key
-   - **OpenAI API Key**: Your OpenAI API key (requires vision model access)
+4. **Start Scanning**
+   - Tap "Select Receipt Photos" on Overview tab
+   - Choose receipt images from your photo library
+   - Watch as AI extracts detailed item information
 
-4. Test connections to ensure everything is working
+## 📱 Screenshots
 
-## OpenAI Prompt Design
+### Main Interface
+- **Overview Dashboard**: Monthly totals and recent expenses
+- **Receipt Scanner**: AI-powered photo processing
+- **Detailed Views**: Expandable item-level breakdowns
 
-The app uses a carefully crafted prompt for expense extraction that:
+### Item-Level Details
+- **Individual Items**: See every item purchased with quantities and prices
+- **Category Breakdown**: Items automatically categorized for analysis
+- **Financial Summary**: Clear separation of charges, taxes, tips, fees
 
-- **Extracts Required Fields**: Date, merchant, amount, currency, category
-- **Handles Optional Fields**: Description, payment method, tax amount
-- **Provides Category Classification**: Maps to predefined expense categories
-- **Includes Confidence Scoring**: AI confidence in extraction accuracy
-- **Follows Strict JSON Format**: Ensures consistent, parseable responses
-- **Handles Edge Cases**: Missing information, unclear receipts, multiple formats
+## 🛠 Technical Architecture
 
-### Prompt Engineering Features
+### Core Technologies
+- **SwiftUI**: Modern, declarative UI framework
+- **OpenAI GPT-4o**: Advanced vision model for receipt processing
+- **UserDefaults**: Local data persistence
+- **iOS Keychain**: Secure credential storage
 
-- Clear field definitions and extraction rules
-- Comprehensive category mapping
-- Conservative confidence scoring guidelines
-- Robust error handling for unparseable receipts
-- Support for multiple currencies and formats
+### Data Flow
+```
+Receipt Photo → AI Processing → Item Extraction → Local Storage → Enhanced UI
+     ↓              ↓               ↓               ↓            ↓
+PhotosPicker → GPT-4o Vision → ExpenseItem[] → UserDefaults → Currency Format
+Multi-select → Error Recovery → Categories → Backup Ready → Analytics
+```
 
-## Database Schema
+### Key Components
+- **ConfigurationManager**: API credential management
+- **ExpenseService**: Business logic and data management
+- **OpenAIService**: AI processing with error recovery
+- **Currency Extensions**: Multi-currency formatting
+- **Enhanced UI**: Expandable item views
 
-### Tables
+## 💾 Data Models
 
-- **expenses**: Main expense records
-- **expense_categories**: Reference table for categories
-- **payment_methods**: Reference table for payment methods
+### Expense Structure
+```swift
+struct Expense {
+    let merchant: String
+    let amount: Double
+    let currency: String
+    let items: [ExpenseItem]?       // Individual items
+    let subtotal: Double?           // Before taxes/tips
+    let taxAmount: Double?          // Tax amount
+    let tip: Double?               // Tip amount
+    let fees: Double?              // Service fees
+    // ... more fields
+}
+```
 
-### Views
+### Item Structure
+```swift
+struct ExpenseItem {
+    let name: String               // Item name
+    let quantity: Double?          // Number of items
+    let unitPrice: Double?         // Price per unit
+    let totalPrice: Double         // Total for this item
+    let category: String?          // Item category
+    let description: String?       // Additional details
+}
+```
 
-- **expense_summary**: Category-based expense summaries
-- **monthly_expense_summary**: Monthly expense breakdowns
+## 🧠 AI Processing
 
-## Error Handling
+### Enhanced Extraction
+- **Comprehensive Prompts**: Detailed instructions for item extraction
+- **Financial Validation**: Ensures extracted data adds up correctly
+- **Error Recovery**: Handles truncated responses and parsing failures
+- **Quality Assurance**: Confidence scoring for accuracy assessment
 
-The app includes comprehensive error handling for:
+### Supported Data
+- **Basic Info**: Date, merchant, amount, currency, category
+- **Items**: Individual items with quantities and prices
+- **Breakdown**: Subtotal, taxes, tips, fees, discounts
+- **Metadata**: Payment method, confidence scores
 
-- Network connectivity issues
-- API authentication failures  
-- Invalid API responses
-- Image processing errors
-- Database operation failures
+## 🌍 Multi-Currency Features
 
-## Security
+### Automatic Currency Handling
+- **Smart Detection**: AI recognizes currency from receipt text
+- **Proper Display**: Uses iOS NumberFormatter for correct symbols
+- **Mixed Support**: Handle multiple currencies in one app
+- **Primary Logic**: Determines main currency for summaries
 
-- **Keychain Storage**: All API credentials stored securely in iOS Keychain
-- **Row Level Security**: Supabase RLS enabled (configure policies as needed)
-- **API Key Validation**: Connection testing before storing credentials
-- **No Credential Logging**: Sensitive data never logged or exposed
+### Supported Currencies
+- USD ($), EUR (€), GBP (£), CAD, AUD, JPY, and more
+- Automatic symbol mapping and formatting
+- Locale-aware display following iOS standards
 
-## Future Enhancements
+## 📊 Analytics & Insights
 
-Potential features to implement:
+### Item-Level Analysis
+- **Top Items**: Most frequently purchased items
+- **Category Spending**: Breakdown by item categories
+- **Price Tracking**: Monitor price changes over time
+- **Merchant Comparison**: Compare prices across stores
 
-- [ ] Expense editing and deletion
-- [ ] Advanced filtering and search
-- [ ] Export functionality (CSV, PDF)
-- [ ] Expense analytics and insights
-- [ ] Budget tracking and alerts
-- [ ] Receipt image storage
-- [ ] Multi-currency support improvements
-- [ ] Offline mode with sync
+### Available Methods
+```swift
+getTopItems(limit: 10)              // Most purchased items
+getSpendingByItemCategory()         // Category breakdown
+getAverageItemPrice(for: "Coffee")  // Price tracking
+getItemFrequency()                  // Purchase frequency
+```
 
-## Troubleshooting
+## 🔐 Privacy & Security
 
-### Common Issues
+### Data Protection
+- **Local Storage**: All data stays on your device
+- **No Cloud Dependency**: No external servers required
+- **Keychain Security**: API credentials stored securely
+- **Photo Privacy**: Images processed but not stored
 
-1. **Connection Test Failures**
-   - Verify API credentials are correct
-   - Check internet connectivity
-   - Ensure Supabase project is active
+### User Control
+- **Data Ownership**: Complete control over your financial data
+- **Easy Export**: Data stored in standard JSON format
+- **Reset Option**: Clear all data when needed
+- **No Tracking**: No analytics or user tracking
 
-2. **Receipt Processing Errors**
-   - Verify OpenAI API key has Vision model access
-   - Ensure images are clear and readable
-   - Check API usage limits
+## 🛠 Development
 
-3. **Database Errors**
-   - Verify Supabase schema is properly set up
-   - Check Row Level Security policies
-   - Ensure API key has necessary permissions
+### Project Structure
+```
+ExpenseManager/
+├── ExpenseManagerApp.swift         # App entry point
+├── ExpenseManagerComplete.swift    # Core business logic
+├── Views/
+│   ├── OverviewView.swift         # Main dashboard
+│   ├── ConfigurationView.swift    # Settings
+│   └── SettingsView.swift         # App settings
+└── Assets.xcassets/               # App icons and images
+```
 
-## Dependencies
+### Key Features Implementation
+- **Item Tracking**: Comprehensive ExpenseItem model
+- **Currency Support**: NumberFormatter-based formatting
+- **Error Handling**: Robust recovery mechanisms
+- **UI Enhancement**: Expandable views with detailed breakdowns
 
-- SwiftUI (iOS 17.0+)
-- PhotosUI for image selection
-- Foundation for networking and data handling
-- Security framework for Keychain operations
+## 🤝 Contributing
 
-## API Integration
+### Getting Started
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
-### OpenAI Vision API
-- Model: `gpt-4o`
-- Purpose: Receipt text and data extraction
-- Response format: Structured JSON
+### Guidelines
+- Follow Swift coding conventions
+- Maintain comprehensive documentation
+- Add tests for new features
+- Ensure backwards compatibility
 
-### Supabase REST API
-- Purpose: Database operations
-- Authentication: Bearer token
-- Features: CRUD operations, real-time updates
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- **OpenAI** for the powerful GPT-4o Vision API
+- **Apple** for SwiftUI and iOS development tools
+- **Community** for feedback and feature suggestions
+
+## 📞 Support
+
+### Documentation
+- [Complete Documentation](DOCUMENTATION.md) - Comprehensive technical guide
+- [Implementation Summary](IMPLEMENTATION_SUMMARY.md) - Development overview
+- [Enhanced Documentation](DOCUMENTATION_ENHANCED.md) - Feature-specific guide
+
+### Issues
+- Report bugs via GitHub Issues
+- Feature requests welcome
+- Check existing issues before creating new ones
+
+### API Requirements
+- OpenAI API key with GPT-4o vision access
+- Sufficient API credits for image processing
+- Stable internet connection for processing
 
 ---
 
-**Note**: This app is designed for personal expense tracking. Ensure you comply with your organization's policies if using for business expenses.
+**ReceiptRadar - Transforming receipt photos into detailed financial insights since 2025**
+
+*Built with ❤️ using SwiftUI and AI*

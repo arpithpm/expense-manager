@@ -1,53 +1,436 @@
-# Expense Manager iOS App - Complete Documentation
+# ReceiptRadar - AI-Powered Expense Manager with Item-Level Tracking
 
 ## Table of Contents
 1. [Overview](#overview)
-2. [Architecture](#architecture)
-3. [API Integrations](#api-integrations)
-4. [Data Storage](#data-storage)
-5. [Data Models](#data-models)
-6. [Services](#services)
-7. [User Interface](#user-interface)
-8. [Workflows](#workflows)
-9. [Setup Instructions](#setup-instructions)
-10. [Security](#security)
-11. [Error Handling](#error-handling)
-12. [Troubleshooting](#troubleshooting)
+2. [Features](#features)
+3. [Architecture](#architecture)
+4. [Data Models](#data-models)
+5. [AI Processing](#ai-processing)
+6. [Item-Level Tracking](#item-level-tracking)
+7. [Multi-Currency Support](#multi-currency-support)
+8. [API Integration](#api-integration)
+9. [User Interface](#user-interface)
+10. [Error Handling](#error-handling)
+11. [Setup Instructions](#setup-instructions)
+12. [Technical Implementation](#technical-implementation)
+13. [Troubleshooting](#troubleshooting)
 
 ## Overview
 
-The Expense Manager is an iOS application that uses AI-powered receipt scanning to automatically extract expense information and store it locally on the device. The app combines OpenAI's Vision API for receipt processing with local UserDefaults storage, with preparation for future Core Data + CloudKit migration for iCloud sync.
+ReceiptRadar is an advanced iOS expense management application that leverages AI-powered receipt scanning to automatically extract comprehensive expense information with item-level tracking. The app combines OpenAI's GPT-4o Vision API for detailed receipt processing with local UserDefaults storage, featuring multi-currency support and advanced analytics capabilities.
 
-### Key Features
-- **AI Receipt Processing**: Automatically extracts expense data from receipt photos
-- **Secure Configuration**: Encrypted storage of API credentials using iOS Keychain
-- **Local Storage**: Fast, reliable local data storage with UserDefaults
-- **Real-time Updates**: Instant UI updates when data changes
-- **Modern UI**: SwiftUI-based interface with loading states and error handling
-- **Privacy-First**: Local data storage with no external database dependencies
-- **Simple Photo Processing**: Photos remain in user's library after processing
-- **Complete CRUD Operations**: Add, view, search, and delete expenses
-- **Backup Status Tracking**: Visual indicators for data backup status
-- **Cross-View Data Consistency**: Singleton pattern ensures data consistency
+### Core Mission
+Transform receipt photos into detailed, structured expense data with individual item tracking, enabling users to gain deep insights into their spending patterns at the most granular level.
+
+## Features
+
+### 🔍 **AI-Powered Receipt Processing**
+- **Advanced OCR**: Uses GPT-4o Vision API for accurate text extraction
+- **Intelligent Parsing**: Extracts both basic expense data and detailed item information
+- **Multi-format Support**: Handles various receipt formats and layouts
+- **Quality Validation**: Ensures extracted data integrity and accuracy
+- **Error Recovery**: Graceful handling of unclear or damaged receipts
+
+### 📊 **Item-Level Tracking**
+- **Individual Items**: Captures name, quantity, unit price, and total price for each item
+- **Item Categories**: Auto-categorizes items (Food, Beverage, Electronics, etc.)
+- **Detailed Descriptions**: Stores size, flavor, modifications, and other details
+- **Quantity Tracking**: Handles various quantity formats and units
+- **Price Analysis**: Tracks unit pricing and bulk purchase calculations
+
+### 💰 **Multi-Currency Support**
+- **Automatic Detection**: Recognizes currency from receipts (USD, EUR, GBP, etc.)
+- **Proper Formatting**: Displays correct currency symbols and formatting
+- **Mixed Currency Handling**: Supports expenses in different currencies
+- **Primary Currency Logic**: Automatically determines main currency for summaries
+- **Locale-Aware Display**: Follows iOS formatting standards
+
+### 📈 **Financial Breakdown**
+- **Comprehensive Tracking**: Separates subtotal, taxes, tips, fees, and discounts
+- **Calculation Validation**: Ensures financial breakdowns add up correctly
+- **Transparency**: Clear visibility into all charges and fees
+- **Tax Analysis**: Detailed tax tracking for business expenses
+- **Tip Recognition**: Automatic tip detection and categorization
+
+### 🎨 **Enhanced User Interface**
+- **Expandable Views**: Collapsible expense rows with detailed breakdowns
+- **Visual Indicators**: Item count badges and category tags
+- **Currency Display**: Proper symbols and formatting throughout
+- **Search Enhancement**: Search by item names, categories, and descriptions
+- **Responsive Design**: Optimized for all iOS device sizes
+
+### 🔒 **Privacy & Security**
+- **Local Storage**: All data stored securely on device using UserDefaults
+- **No Cloud Dependency**: No external database requirements
+- **Keychain Integration**: Secure API credential storage
+- **Photo Privacy**: Images processed but not stored permanently
 
 ## Architecture
 
-### High-Level Architecture
+### System Architecture
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   iOS App       │    │   OpenAI API    │    │  Local Storage  │
 │   (SwiftUI)     │────│   (GPT-4o)      │    │ (UserDefaults)  │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
-    PhotosPicker            Vision API              Local JSON
-    Keychain                JSON Response          Future: CloudKit
+    PhotosPicker            Vision API              Enhanced JSON
+    Enhanced UI             Item Extraction        Item Storage
+    Multi-Currency          Financial Breakdown    Analytics Ready
+```
+
+### Data Flow
+```
+Receipt Photo → AI Processing → Item Extraction → Data Storage → UI Display
+     ↓              ↓               ↓               ↓            ↓
+PhotosPicker → GPT-4o Vision → Items Array → UserDefaults → Enhanced Views
+Asset ID     → JSON Response → ExpenseItem → Expense Model → Currency Format
+Multi-select → Error Recovery → Categories → Local Backup → Analytics
 ```
 
 ### Core Components
-1. **ConfigurationManager**: OpenAI API credential management and validation
-2. **ExpenseService**: Main business logic coordinator with local storage (singleton pattern)
-3. **OpenAIService**: Receipt processing via Vision API
-4. **KeychainService**: Secure credential storage
+1. **ConfigurationManager**: API credential management with validation
+2. **ExpenseService**: Enhanced business logic with item processing
+3. **OpenAIService**: Advanced receipt processing with error recovery
+4. **Currency Extensions**: Multi-currency formatting and display
+5. **Enhanced UI**: Expandable views with comprehensive item details
+
+## Data Models
+
+### Enhanced Expense Model
+```swift
+struct Expense: Identifiable, Codable {
+    // Core expense information
+    let id: UUID
+    let date: Date
+    let merchant: String
+    let amount: Double              // Final total amount
+    let currency: String            // Currency code (USD, EUR, etc.)
+    let category: String            // Primary expense category
+    let description: String?
+    let paymentMethod: String?
+    let receiptImageUrl: String?
+    let createdAt: Date
+    let updatedAt: Date
+    
+    // Enhanced item-level tracking
+    let items: [ExpenseItem]?       // Array of individual items
+    let subtotal: Double?           // Amount before taxes/tips/fees
+    let discounts: Double?          // Applied discounts or coupons
+    let fees: Double?              // Service fees, delivery charges
+    let tip: Double?               // Tip amount
+    let taxAmount: Double?         // Tax amount
+    let itemsTotal: Double?        // Sum of all item prices
+}
+```
+
+### ExpenseItem Model
+```swift
+struct ExpenseItem: Identifiable, Codable {
+    let id: UUID
+    let name: String               // Item name/description
+    let quantity: Double?          // Number of items
+    let unitPrice: Double?         // Price per unit
+    let totalPrice: Double         // Total price for this item
+    let category: String?          // Item-specific category
+    let description: String?       // Additional details
+}
+```
+
+### Sample Data Structure
+```json
+{
+  "id": "uuid",
+  "merchant": "Starbucks Coffee",
+  "amount": 9.85,
+  "currency": "USD",
+  "category": "Food & Dining",
+  "items": [
+    {
+      "name": "Grande Latte",
+      "quantity": 1,
+      "unitPrice": 4.75,
+      "totalPrice": 4.75,
+      "category": "Beverage",
+      "description": "Oat milk"
+    },
+    {
+      "name": "Blueberry Muffin",
+      "quantity": 1,
+      "unitPrice": 2.95,
+      "totalPrice": 2.95,
+      "category": "Food",
+      "description": "Warmed"
+    }
+  ],
+  "subtotal": 7.70,
+  "tip": 1.37,
+  "taxAmount": 0.78
+}
+```
+
+## AI Processing
+
+### Enhanced OpenAI Integration
+
+#### Request Configuration
+- **Model**: GPT-4o with vision capabilities
+- **Token Limit**: 1000 tokens (increased for item details)
+- **Temperature**: 0.1 (for consistent, factual extraction)
+- **Image Format**: JPEG with 80% compression for optimal processing
+
+#### Comprehensive Extraction Prompt
+The AI prompt has been optimized for detailed extraction:
+
+**Required Fields:**
+- Date (YYYY-MM-DD format)
+- Merchant name
+- Final total amount
+- Currency code
+- Primary category
+
+**Optional Fields:**
+- Overall description
+- Payment method
+- Tax amount
+- Confidence score (0.0-1.0)
+
+**Item-Level Extraction:**
+- Individual item names
+- Quantities (when specified)
+- Unit prices (when calculable)
+- Total prices per item
+- Item-specific categories
+- Additional descriptions
+
+**Financial Breakdown:**
+- Subtotal before charges
+- Discounts or coupons
+- Service fees
+- Tip amounts
+- Items total
+
+#### Error Handling & Recovery
+- **Truncation Detection**: Identifies when responses are cut off
+- **JSON Repair**: Automatically fixes incomplete responses
+- **Fallback Parsing**: Extracts basic info when items fail
+- **Validation**: Ensures financial calculations are correct
+
+## Item-Level Tracking
+
+### Benefits for Users
+
+#### Granular Spending Analysis
+- **Item-Specific Tracking**: "Spent $47 on coffee this month"
+- **Category Insights**: Detailed breakdown by item types
+- **Price Monitoring**: Track price changes over time
+- **Merchant Comparison**: Compare prices across stores
+- **Bulk Analysis**: Identify bulk vs. individual purchases
+
+#### Practical Applications
+- **Grocery Analysis**: Track healthy vs. processed foods
+- **Restaurant Insights**: Identify dining patterns and preferences
+- **Business Expenses**: Detailed itemization for tax purposes
+- **Budget Optimization**: Pinpoint high-cost items for reduction
+- **Shopping Habits**: Understand purchasing behavior patterns
+
+### Data Processing
+
+#### Extraction Process
+1. **Photo Analysis**: AI examines receipt for itemized sections
+2. **Item Identification**: Extracts individual items with details
+3. **Price Validation**: Ensures item prices sum correctly
+4. **Category Assignment**: Auto-categorizes based on item type
+5. **Quality Check**: Validates extracted data for consistency
+
+#### Item Categories
+- **Food**: Meals, groceries, snacks
+- **Beverage**: Drinks, coffee, alcohol
+- **Product**: General merchandise
+- **Service**: Service charges, fees
+- **Electronics**: Tech products and accessories
+- **Household**: Home goods and supplies
+- **Personal Care**: Health and beauty items
+- **Other**: Miscellaneous items
+
+## Multi-Currency Support
+
+### Currency Handling
+
+#### Automatic Detection
+- **AI Recognition**: Extracts currency from receipt text
+- **Symbol Mapping**: Maps currency codes to symbols
+- **Locale Formatting**: Uses iOS NumberFormatter for proper display
+- **Fallback Support**: Graceful handling when currency unclear
+
+#### Display Features
+- **Proper Symbols**: € for EUR, $ for USD, £ for GBP
+- **Consistent Formatting**: All amounts use correct currency
+- **Mixed Currency Support**: Handles multiple currencies in one app
+- **Primary Currency Logic**: Determines main currency for summaries
+
+#### Implementation
+```swift
+extension Double {
+    func formatted(currency: String) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = currency
+        return formatter.string(from: NSNumber(value: self)) ?? 
+               "\(currency) \(String(format: "%.2f", self))"
+    }
+}
+```
+
+## API Integration
+
+### OpenAI Vision API
+
+#### Enhanced Request Structure
+```json
+{
+  "model": "gpt-4o",
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "[ENHANCED_PROMPT_WITH_ITEM_EXTRACTION]"
+        },
+        {
+          "type": "image_url",
+          "image_url": {
+            "url": "data:image/jpeg;base64,[BASE64_IMAGE]"
+          }
+        }
+      ]
+    }
+  ],
+  "max_tokens": 1000,
+  "temperature": 0.1
+}
+```
+
+#### Response Processing
+- **JSON Parsing**: Robust parsing with error recovery
+- **Validation**: Ensures response completeness
+- **Error Handling**: Graceful degradation for issues
+- **Logging**: Comprehensive logging for debugging
+
+## User Interface
+
+### Enhanced Expense Views
+
+#### Main Expense Row
+- **Summary Display**: Merchant, amount, category, item count
+- **Currency Formatting**: Proper symbols and formatting
+- **Expandable Indicator**: Chevron shows collapsible state
+- **Visual Hierarchy**: Clear information organization
+
+#### Detailed Item View
+- **Item List**: Individual items with quantities and prices
+- **Category Badges**: Color-coded item categories
+- **Price Breakdown**: Unit prices and totals clearly displayed
+- **Financial Summary**: Subtotal, taxes, tips, fees separated
+
+#### Enhanced Features
+- **Search Enhancement**: Search items, categories, descriptions
+- **Visual Indicators**: Item count badges and category tags
+- **Responsive Design**: Adapts to all device sizes
+- **Accessibility**: Proper semantic structure
+
+## Error Handling
+
+### Comprehensive Error Management
+
+#### AI Processing Errors
+- **Token Limit Exceeded**: Automatic retry with simplified extraction
+- **Invalid API Key**: Clear user instructions for credential update
+- **Network Issues**: Retry logic with exponential backoff
+- **Parsing Failures**: Fallback to basic expense extraction
+
+#### User Experience
+- **Clear Messages**: Specific error descriptions for users
+- **Recovery Options**: Suggestions for resolving issues
+- **Graceful Degradation**: App remains functional during errors
+- **Logging**: Detailed logs for troubleshooting
+
+## Setup Instructions
+
+### Prerequisites
+- **iOS 16.0+**: Required for SwiftUI features
+- **Xcode 15.0+**: Development environment
+- **OpenAI API Key**: With GPT-4o vision access
+- **API Credits**: Sufficient credits for image processing
+
+### Installation Steps
+1. **Clone Repository**: Download project files
+2. **Open in Xcode**: Launch ExpenseManager.xcodeproj
+3. **Configure Credentials**: Add OpenAI API key in app settings
+4. **Test Connection**: Verify API access works properly
+5. **Grant Permissions**: Allow photo library access
+6. **Start Processing**: Begin scanning receipts
+
+### Configuration
+- **API Setup**: Enter OpenAI API key with GPT-4o access
+- **Connection Test**: Verify API credentials before use
+- **Photo Permissions**: Required for receipt scanning
+- **Sample Data**: App includes comprehensive sample expenses
+
+## Technical Implementation
+
+### Performance Characteristics
+- **Token Usage**: ~300-1000 tokens per request (increased for items)
+- **Processing Time**: 3-8 seconds depending on receipt complexity
+- **Storage Efficiency**: Optimized JSON storage for local data
+- **Memory Usage**: Efficient SwiftUI rendering with lazy loading
+
+### Code Quality
+- **Type Safety**: Comprehensive Swift optionals handling
+- **Error Resilience**: Robust error catching throughout
+- **Maintainability**: Clean separation of concerns
+- **Testing Ready**: Structured for unit and integration tests
+
+### Future Enhancements
+- **Core Data Migration**: Enhanced storage for large datasets
+- **Cloud Sync**: Multi-device synchronization
+- **Advanced Analytics**: Machine learning insights
+- **Export Features**: PDF reports and data export
+- **Receipt Storage**: Optional image retention
+
+## Troubleshooting
+
+### Common Issues
+
+#### Receipt Processing Failures
+- **Blurry Images**: Ensure clear, well-lit photos
+- **Complex Receipts**: May require multiple processing attempts
+- **Token Limits**: Very detailed receipts might hit limits
+- **Currency Issues**: Verify currency is clearly visible
+
+#### API Issues
+- **Invalid Key**: Check OpenAI API key configuration
+- **Quota Exceeded**: Verify API usage limits
+- **Network Problems**: Check internet connectivity
+- **Model Access**: Ensure GPT-4o vision access
+
+#### Data Issues
+- **Missing Items**: Some receipts may not itemize clearly
+- **Incorrect Totals**: Verify extracted amounts match receipt
+- **Currency Mismatches**: Check if currency is properly detected
+- **Storage Problems**: Restart app if data doesn't persist
+
+### Support Information
+- **Error Logs**: Check Xcode console for detailed errors
+- **API Documentation**: Refer to OpenAI Vision API docs
+- **Sample Data**: Use included examples for testing
+- **Reset Option**: Clear all data in app settings if needed
+
+---
+
+**ReceiptRadar v2.0 - Enhanced with Item-Level Tracking**
+**Last Updated: September 2025**
 5. **BackupStatus**: Local data backup status tracking system
 
 ## API Integrations
