@@ -8,8 +8,8 @@
 5. [AI Processing](#ai-processing)
 6. [Item-Level Tracking](#item-level-tracking)
 7. [Multi-Currency Support](#multi-currency-support)
-8. [Multi-Currency Support](#multi-currency-support)
-9. [Data Management & Reset](#data-management--reset)
+8. [Data Management & Reset](#data-management--reset)
+9. [Cost Optimization](#cost-optimization)
 10. [API Integration](#api-integration)
 11. [User Interface](#user-interface)
 12. [Error Handling](#error-handling)
@@ -489,6 +489,52 @@ The reset system is designed for easy expansion:
 - **Async Operations**: Handles long-running reset operations
 - **Progress Tracking**: Ready for detailed progress reporting
 - **Batch Operations**: Efficient handling of large datasets
+
+## Cost Optimization
+
+### OpenAI Model Analysis & Optimization
+
+The app has undergone comprehensive cost analysis to optimize OpenAI API usage while maintaining excellent receipt processing quality. See [OPENAI_PRICING_RESEARCH.md](./OPENAI_PRICING_RESEARCH.md) for detailed analysis.
+
+#### Current vs Optimized Costs
+
+| Metric | Current (GPT-4o legacy) | Optimized (GPT-4o mini) | Savings |
+|--------|------------------------|-------------------------|---------|
+| **Cost per receipt** | $0.010 | $0.0006 | **94%** |
+| **Monthly cost (1000 receipts)** | $10.00 | $0.60 | **94%** |
+| **Quality** | Excellent | Excellent | Same |
+| **Capabilities** | Multimodal | Multimodal | Same |
+
+#### Recommended Model: GPT-4o mini
+- **Perfect for receipt processing**: Specifically designed for "multimodal on a budget"
+- **Massive cost savings**: 94% reduction from current model
+- **Same capabilities**: Text + image processing with same quality
+- **Enables generous free tier**: 1000+ free receipts economically viable
+
+#### Recommended Launch Pricing Strategy
+```
+🆓 Free Tier: 10 receipts/day (resets daily)
+💎 Premium: $1.99/month unlimited scans
+🚀 Pro: $4.99/month premium features + unlimited
+
+📊 Economics:
+• Free user cost: $0.18/month (~300 scans)
+• Break-even: 1 premium covers 11 free users
+• Profit margin: 85%+ after free tier costs
+• Competitive advantage: 60x more generous than competitors
+```
+
+#### Implementation Status
+- **Phase 1**: Switch to GPT-4o mini (immediate 94% savings)
+- **Phase 2**: Implement tiered processing system
+- **Phase 3**: Add subscription and credit management
+- **Phase 4**: Advanced features and fine-tuning
+
+#### Competitive Advantage
+- **Industry standard**: 5-10 free receipt scans
+- **Our offering**: 1,000 free receipt scans (200x more generous)
+- **Sustainable model**: Low costs enable freemium strategy
+- **Market differentiation**: Unmatched free tier generosity
 
 ## API Integration
 
