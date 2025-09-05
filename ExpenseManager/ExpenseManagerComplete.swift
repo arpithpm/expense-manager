@@ -485,7 +485,7 @@ class OpenAIService {
     func extractExpenseFromReceipt(_ image: UIImage) async throws -> OpenAIExpenseExtraction {
         // Check if user can scan today
         let subscriptionManager = SubscriptionManager.shared
-        guard subscriptionManager.canScanToday else {
+        guard await subscriptionManager.canScanToday else {
             throw OpenAIError.dailyLimitReached
         }
         
@@ -511,8 +511,8 @@ class OpenAIService {
         
         // Determine which API key to use
         let apiKey: String
-        if subscriptionManager.shouldUseUserAPIKey {
-            apiKey = subscriptionManager.userAPIKey
+        if await subscriptionManager.shouldUseUserAPIKey {
+            apiKey = await subscriptionManager.userAPIKey
         } else {
             guard let configAPIKey = KeychainService.shared.retrieve(for: .openaiKey) else {
                 throw OpenAIError.missingAPIKey
@@ -784,8 +784,8 @@ class ExpenseService: ObservableObject {
         for photoItem in photoItems {
             do {
                 // Check if user can scan before processing
-                guard subscriptionManager.canScanToday else {
-                    errorMessage = subscriptionManager.getUpgradeMessage()
+                guard await subscriptionManager.canScanToday else {
+                    errorMessage = await subscriptionManager.getUpgradeMessage()
                     break
                 }
                 
@@ -804,7 +804,7 @@ class ExpenseService: ObservableObject {
                     _ = addExpense(expense)
                     
                     // Consume a scan from the daily/subscription limit
-                    _ = subscriptionManager.consumeScan()
+                    _ = await subscriptionManager.consumeScan()
                     
                     processedCount += 1
                 }
@@ -824,7 +824,7 @@ class ExpenseService: ObservableObject {
                     case .responseTruncated:
                         errorMessage = "Receipt has too many items for processing. Try processing a simpler receipt."
                     case .dailyLimitReached:
-                        errorMessage = subscriptionManager.getUpgradeMessage()
+                        errorMessage = await subscriptionManager.getUpgradeMessage()
                     default:
                         errorMessage = "OpenAI processing failed: \(openAIError.localizedDescription)"
                     }
