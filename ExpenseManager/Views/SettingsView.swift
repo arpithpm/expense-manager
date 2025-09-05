@@ -13,13 +13,11 @@ struct SettingsView: View {
     @State private var showingEmailOptions = false
     @State private var showingSampleDataAlert = false
     @State private var showingDataResetView = false
-    @State private var showingPricingView = false
     
     var body: some View {
         NavigationView {
             List {
                 connectionStatusSection
-                subscriptionSection
                 configurationSection
                 backupStatusSection
                 dataManagementSection
@@ -91,9 +89,6 @@ struct SettingsView: View {
         .sheet(isPresented: $showingDataResetView) {
             DataResetView()
         }
-        .sheet(isPresented: $showingPricingView) {
-            PricingView()
-        }
     }
     
     private var connectionStatusSection: some View {
@@ -141,66 +136,6 @@ struct SettingsView: View {
         }
     }
     
-    private var subscriptionSection: some View {
-        Section("Subscription & Usage") {
-            HStack {
-                Image(systemName: "star.circle.fill")
-                    .foregroundColor(.accentColor)
-                    .font(.title2)
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Current Plan")
-                        .font(.headline)
-                    Text(SubscriptionManager.shared.currentTier.displayName)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-                
-                if SubscriptionManager.shared.currentTier == .free {
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text("\(SubscriptionManager.shared.scansRemainingToday)")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundColor(.accentColor)
-                        Text("scans left today")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                } else {
-                    Image(systemName: "infinity")
-                        .font(.title2)
-                        .foregroundColor(.green)
-                }
-            }
-            .padding(.vertical, 4)
-            
-            Button(action: {
-                showingPricingView = true
-            }) {
-                HStack {
-                    Image(systemName: "creditcard")
-                        .foregroundColor(.accentColor)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Manage Subscription")
-                            .font(.subheadline)
-                            .foregroundColor(.primary)
-                        Text("View plans, upgrade, or change settings")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    Image(systemName: "chevron.right")
-                        .foregroundColor(.secondary)
-                        .font(.caption)
-                }
-            }
-        }
-    }
     
     private var configurationSection: some View {
         Section("Configuration") {
