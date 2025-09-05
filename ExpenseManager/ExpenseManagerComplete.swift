@@ -631,7 +631,7 @@ class ExpenseService: ObservableObject {
                     let expense = try createExpenseFromExtraction(extractedData)
                     
                     // Save expense locally
-                    let createdExpense = addExpense(expense)
+                    _ = addExpense(expense)
                     
                     processedCount += 1
                 }
