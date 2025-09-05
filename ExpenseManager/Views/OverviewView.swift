@@ -348,50 +348,51 @@ struct ExpenseRowView: View {
                     if let items = expense.items, !items.isEmpty {
                         VStack(spacing: 6) {
                             ForEach(items) { item in
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(item.name)
-                                        .font(.subheadline)
-                                        .fontWeight(.medium)
-                                    
-                                    if let description = item.description {
-                                        Text(description)
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(item.name)
+                                            .font(.subheadline)
+                                            .fontWeight(.medium)
+                                        
+                                        if let description = item.description {
+                                            Text(description)
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                        
+                                        if let category = item.category {
+                                            Text(category)
+                                                .font(.caption2)
+                                                .padding(.horizontal, 6)
+                                                .padding(.vertical, 2)
+                                                .background(Color.blue.opacity(0.1))
+                                                .cornerRadius(4)
+                                                .foregroundColor(.blue)
+                                        }
                                     }
                                     
-                                    if let category = item.category {
-                                        Text(category)
-                                            .font(.caption2)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .background(Color.blue.opacity(0.1))
-                                            .cornerRadius(4)
-                                            .foregroundColor(.blue)
+                                    Spacer()
+                                    
+                                    VStack(alignment: .trailing, spacing: 2) {
+                                        if let quantity = item.quantity, quantity != 1 {
+                                            Text("\(quantity, specifier: "%.1f")x")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                        
+                                        Text(item.formattedTotalPrice(currency: expense.currency))
+                                            .font(.subheadline)
+                                            .fontWeight(.medium)
+                                        
+                                        if let unitPriceFormatted = item.formattedUnitPrice(currency: expense.currency), let quantity = item.quantity, quantity > 1 {
+                                            Text("\(unitPriceFormatted) each")
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary)
+                                        }
                                     }
                                 }
-                                
-                                Spacer()
-                                
-                                VStack(alignment: .trailing, spacing: 2) {
-                                    if let quantity = item.quantity, quantity != 1 {
-                                        Text("\(quantity, specifier: "%.1f")x")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                    
-                                    Text(item.formattedTotalPrice(currency: expense.currency))
-                                        .font(.subheadline)
-                                        .fontWeight(.medium)
-                                    
-                                    if let unitPriceFormatted = item.formattedUnitPrice(currency: expense.currency), let quantity = item.quantity, quantity > 1 {
-                                        Text("\(unitPriceFormatted) each")
-                                            .font(.caption2)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
+                                .padding(.horizontal)
                             }
-                            .padding(.horizontal)
                         }
                     } else {
                         // Debug: Show message when no items
@@ -579,9 +580,6 @@ struct AllExpensesView: View {
             )
             .onAppear {
                 checkAndShowSwipeHint()
-            }
-            .onTapGesture {
-                hideSwipeHint()
             }
         }
         .alert("Delete Expense", isPresented: $showingDeleteConfirmation) {

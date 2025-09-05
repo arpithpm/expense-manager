@@ -12,6 +12,12 @@ struct ContentView: View {
                     Text("Overview")
                 }
             
+            AllExpensesView()
+                .tabItem {
+                    Image(systemName: "list.bullet")
+                    Text("All Expenses")
+                }
+            
             SettingsView()
                 .tabItem {
                     Image(systemName: "gear")
