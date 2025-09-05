@@ -476,6 +476,7 @@ struct AllExpensesView: View {
     @State private var expenseToDelete: Expense?
     @State private var showingDeleteConfirmation = false
     @State private var searchText = ""
+    @State private var showSwipeHint = false
     
     private var filteredExpenses: [Expense] {
         if searchText.isEmpty {
@@ -543,6 +544,16 @@ struct AllExpensesView: View {
                     }
                 }
             }
+            .overlay(
+                // Swipe hint overlay
+                swipeHintOverlay
+            )
+            .onAppear {
+                checkAndShowSwipeHint()
+            }
+            .onTapGesture {
+                hideSwipeHint()
+            }
         }
         .alert("Delete Expense", isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) {
@@ -561,7 +572,80 @@ struct AllExpensesView: View {
         }
     }
     
+    @ViewBuilder
+    private var swipeHintOverlay: some View {
+        if showSwipeHint && !filteredExpenses.isEmpty {
+            VStack {
+                Spacer()
+                    .frame(height: 120) // Account for navigation bar
+                
+                HStack {
+                    HStack(spacing: 8) {
+                        Image(systemName: "hand.point.right.fill")
+                            .foregroundColor(.white)
+                            .font(.caption)
+                        Text("💡 Swipe left on any expense to delete it")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white)
+                        Image(systemName: "trash")
+                            .foregroundColor(.white)
+                            .font(.caption)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 25)
+                            .fill(Color.accentColor.opacity(0.9))
+                            .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2)
+                    )
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .top).combined(with: .opacity),
+                        removal: .opacity
+                    ))
+                    
+                    Spacer()
+                }
+                .padding(.horizontal, 20)
+                
+                Spacer()
+            }
+            .allowsHitTesting(false) // Allow taps to pass through
+        }
+    }
+    
+    private func checkAndShowSwipeHint() {
+        let hasShownHint = UserDefaults.standard.bool(forKey: "hasShownSwipeToDeleteHint")
+        
+        if !hasShownHint && !filteredExpenses.isEmpty {
+            // Show hint after a brief delay to let the view settle
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    showSwipeHint = true
+                }
+                
+                // Auto-hide after 4 seconds
+                DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+                    hideSwipeHint()
+                }
+            }
+        }
+    }
+    
+    private func hideSwipeHint() {
+        if showSwipeHint {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                showSwipeHint = false
+            }
+            
+            // Mark as shown so it doesn't appear again
+            UserDefaults.standard.set(true, forKey: "hasShownSwipeToDeleteHint")
+        }
+    }
+    
     private func deleteExpense(_ expense: Expense) {
+        // Hide hint when user performs an action
+        hideSwipeHint()
         expenseToDelete = expense
         showingDeleteConfirmation = true
     }
