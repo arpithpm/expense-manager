@@ -14,18 +14,11 @@ struct OverviewView: View {
     @State private var showingAllExpenses = false
     // Computed properties that automatically update when expenseService.expenses changes
     private var totalExpenses: Double {
-        expenseService.expenses.reduce(0) { $0 + $1.amount }
+        expenseService.getTotalInPrimaryCurrency()
     }
     
     private var monthlyTotal: Double {
-        let calendar = Calendar.current
-        let now = Date()
-        let startOfMonth = calendar.dateInterval(of: .month, for: now)?.start ?? now
-        let endOfMonth = calendar.dateInterval(of: .month, for: now)?.end ?? now
-        
-        return expenseService.expenses.filter { expense in
-            expense.date >= startOfMonth && expense.date < endOfMonth
-        }.reduce(0) { $0 + $1.amount }
+        expenseService.getMonthlyTotalInPrimaryCurrency()
     }
     
     private var recentExpenses: [Expense] {
@@ -70,7 +63,7 @@ struct OverviewView: View {
             }
         } message: {
             if let expense = expenseToDelete {
-                Text("Are you sure you want to delete the expense from \(expense.merchant) for $\(expense.amount, specifier: "%.2f")?")
+                Text("Are you sure you want to delete the expense from \(expense.merchant) for \(expense.formattedAmount)?")
             }
         }
         .sheet(isPresented: $showingAllExpenses) {
@@ -92,16 +85,18 @@ struct OverviewView: View {
         ], spacing: 16) {
             SummaryCard(
                 title: "This Month",
-                amount: monthlyTotal,
+                amount: expenseService.getMonthlyTotalInPrimaryCurrency(),
                 icon: "calendar",
-                color: .blue
+                color: .blue,
+                currency: expenseService.getPrimaryCurrency()
             )
             
             SummaryCard(
                 title: "Total Expenses",
-                amount: totalExpenses,
+                amount: expenseService.getTotalInPrimaryCurrency(),
                 icon: "dollarsign.circle",
-                color: .green
+                color: .green,
+                currency: expenseService.getPrimaryCurrency()
             )
         }
     }
@@ -262,6 +257,7 @@ struct SummaryCard: View {
     let amount: Double
     let icon: String
     let color: Color
+    let currency: String
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -275,7 +271,7 @@ struct SummaryCard: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
             
-            Text("$\(amount, specifier: "%.2f")")
+            Text(amount.formatted(currency: currency))
                 .font(.title2)
                 .fontWeight(.bold)
         }
@@ -288,47 +284,207 @@ struct SummaryCard: View {
 
 struct ExpenseRowView: View {
     let expense: Expense
+    @State private var showingItemDetails = false
     
     var body: some View {
-        HStack {
-            VStack {
-                Image(systemName: categoryIcon(for: expense.category))
-                    .font(.title2)
-                    .foregroundColor(.accentColor)
-                    .frame(width: 40, height: 40)
-                    .background(Color.accentColor.opacity(0.1))
-                    .cornerRadius(8)
-            }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(expense.merchant)
-                    .font(.headline)
-                    .lineLimit(1)
+        VStack(spacing: 0) {
+            HStack {
+                VStack {
+                    Image(systemName: categoryIcon(for: expense.category))
+                        .font(.title2)
+                        .foregroundColor(.accentColor)
+                        .frame(width: 40, height: 40)
+                        .background(Color.accentColor.opacity(0.1))
+                        .cornerRadius(8)
+                }
                 
-                Text(expense.category)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                
-                Text(expense.date, style: .date)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            Spacer()
-            
-            VStack(alignment: .trailing, spacing: 4) {
-                Text("$\(expense.amount, specifier: "%.2f")")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                
-                if let paymentMethod = expense.paymentMethod {
-                    Text(paymentMethod)
-                        .font(.caption)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(expense.merchant)
+                        .font(.headline)
+                        .lineLimit(1)
+                    
+                    Text(expense.category)
+                        .font(.subheadline)
                         .foregroundColor(.secondary)
+                    
+                    HStack {
+                        Text(expense.date, style: .date)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        if let itemCount = expense.items?.count, itemCount > 0 {
+                            Text("• \(itemCount) item\(itemCount == 1 ? "" : "s")")
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                        }
+                    }
+                }
+                
+                Spacer()
+                
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(expense.formattedAmount)
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                    
+                    if let paymentMethod = expense.paymentMethod {
+                        Text(paymentMethod)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    if expense.items != nil && !expense.items!.isEmpty {
+                        Button(action: {
+                            showingItemDetails.toggle()
+                        }) {
+                            Image(systemName: showingItemDetails ? "chevron.up" : "chevron.down")
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                        }
+                    }
                 }
             }
+            .padding()
+            
+            // Item details section
+            if showingItemDetails, let items = expense.items, !items.isEmpty {
+                VStack(spacing: 8) {
+                    Divider()
+                        .padding(.horizontal)
+                    
+                    VStack(spacing: 6) {
+                        ForEach(items) { item in
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(item.name)
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                    
+                                    if let description = item.description {
+                                        Text(description)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    
+                                    if let category = item.category {
+                                        Text(category)
+                                            .font(.caption2)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Color.blue.opacity(0.1))
+                                            .cornerRadius(4)
+                                            .foregroundColor(.blue)
+                                    }
+                                }
+                                
+                                Spacer()
+                                
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    if let quantity = item.quantity, quantity != 1 {
+                                        Text("\(quantity, specifier: "%.1f")x")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    
+                                    Text(item.formattedTotalPrice(currency: expense.currency))
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                    
+                                    if let unitPriceFormatted = item.formattedUnitPrice(currency: expense.currency), let quantity = item.quantity, quantity > 1 {
+                                        Text("\(unitPriceFormatted) each")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                    }
+                    
+                    // Financial breakdown if available
+                    if expense.subtotal != nil || expense.tip != nil || expense.fees != nil || expense.discounts != nil {
+                        Divider()
+                            .padding(.horizontal)
+                        
+                        VStack(spacing: 4) {
+                            if let formattedSubtotal = expense.formattedSubtotal {
+                                HStack {
+                                    Text("Subtotal")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    Text(formattedSubtotal)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            
+                            if let formattedDiscounts = expense.formattedDiscounts {
+                                HStack {
+                                    Text("Discounts")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    Text(formattedDiscounts)
+                                        .font(.caption)
+                                        .foregroundColor(.green)
+                                }
+                            }
+                            
+                            if let formattedFees = expense.formattedFees {
+                                HStack {
+                                    Text("Fees")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    Text(formattedFees)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            
+                            if let formattedTaxAmount = expense.formattedTaxAmount {
+                                HStack {
+                                    Text("Tax")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    Text(formattedTaxAmount)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            
+                            if let formattedTip = expense.formattedTip {
+                                HStack {
+                                    Text("Tip")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    Text(formattedTip)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            
+                            Divider()
+                            
+                            HStack {
+                                Text("Total")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                Spacer()
+                                Text(expense.formattedAmount)
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+                }
+                .padding(.bottom)
+            }
         }
-        .padding()
         .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: Color.black.opacity(0.05), radius: 1, x: 0, y: 1)
@@ -360,7 +516,7 @@ struct ProcessedPhotoRowView: View {
                     .font(.headline)
                     .lineLimit(1)
                 
-                Text("$\(processedPhoto.expense.amount, specifier: "%.2f") • \(processedPhoto.expense.category)")
+                Text("\(processedPhoto.expense.formattedAmount) • \(processedPhoto.expense.category)")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 
@@ -408,7 +564,12 @@ struct AllExpensesView: View {
             return expenseService.expenses.filter { expense in
                 expense.merchant.localizedCaseInsensitiveContains(searchText) ||
                 expense.category.localizedCaseInsensitiveContains(searchText) ||
-                (expense.description?.localizedCaseInsensitiveContains(searchText) ?? false)
+                (expense.description?.localizedCaseInsensitiveContains(searchText) ?? false) ||
+                (expense.items?.contains { item in
+                    item.name.localizedCaseInsensitiveContains(searchText) ||
+                    (item.category?.localizedCaseInsensitiveContains(searchText) ?? false) ||
+                    (item.description?.localizedCaseInsensitiveContains(searchText) ?? false)
+                } ?? false)
             }.sorted { $0.createdAt > $1.createdAt }
         }
     }
@@ -475,7 +636,7 @@ struct AllExpensesView: View {
             }
         } message: {
             if let expense = expenseToDelete {
-                Text("Are you sure you want to delete the expense from \(expense.merchant) for $\(expense.amount, specifier: "%.2f")?")
+                Text("Are you sure you want to delete the expense from \(expense.merchant) for \(expense.formattedAmount)?")
             }
         }
     }

@@ -7,6 +7,34 @@ import Security
 
 // MARK: - Models and Data Structures
 
+struct ExpenseItem: Identifiable, Codable {
+    let id: UUID
+    let name: String
+    let quantity: Double?
+    let unitPrice: Double?
+    let totalPrice: Double
+    let category: String?
+    let description: String?
+    
+    init(
+        id: UUID = UUID(),
+        name: String,
+        quantity: Double? = nil,
+        unitPrice: Double? = nil,
+        totalPrice: Double,
+        category: String? = nil,
+        description: String? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.quantity = quantity
+        self.unitPrice = unitPrice
+        self.totalPrice = totalPrice
+        self.category = category
+        self.description = description
+    }
+}
+
 struct Expense: Identifiable, Codable {
     let id: UUID
     let date: Date
@@ -21,6 +49,14 @@ struct Expense: Identifiable, Codable {
     let createdAt: Date
     let updatedAt: Date
     
+    // Enhanced item-level tracking
+    let items: [ExpenseItem]?
+    let subtotal: Double?
+    let discounts: Double?
+    let fees: Double?
+    let tip: Double?
+    let itemsTotal: Double?
+    
     init(
         id: UUID = UUID(),
         date: Date,
@@ -33,7 +69,13 @@ struct Expense: Identifiable, Codable {
         taxAmount: Double? = nil,
         receiptImageUrl: String? = nil,
         createdAt: Date = Date(),
-        updatedAt: Date = Date()
+        updatedAt: Date = Date(),
+        items: [ExpenseItem]? = nil,
+        subtotal: Double? = nil,
+        discounts: Double? = nil,
+        fees: Double? = nil,
+        tip: Double? = nil,
+        itemsTotal: Double? = nil
     ) {
         self.id = id
         self.date = date
@@ -47,6 +89,12 @@ struct Expense: Identifiable, Codable {
         self.receiptImageUrl = receiptImageUrl
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.items = items
+        self.subtotal = subtotal
+        self.discounts = discounts
+        self.fees = fees
+        self.tip = tip
+        self.itemsTotal = itemsTotal
     }
 }
 
@@ -73,12 +121,35 @@ struct OpenAIExpenseExtraction: Codable {
     let paymentMethod: String?
     let taxAmount: Double?
     let confidence: Double
+    
+    // Enhanced item-level tracking
+    let items: [OpenAIExpenseItem]?
+    let subtotal: Double?
+    let discounts: Double?
+    let fees: Double?
+    let tip: Double?
+    let itemsTotal: Double?
+}
+
+struct OpenAIExpenseItem: Codable {
+    let name: String
+    let quantity: Double?
+    let unitPrice: Double?
+    let totalPrice: Double
+    let category: String?
+    let description: String?
 }
 
 struct OpenAIResponse: Codable {
     let choices: [Choice]
     struct Choice: Codable {
         let message: Message
+        let finishReason: String?
+        
+        enum CodingKeys: String, CodingKey {
+            case message
+            case finishReason = "finish_reason"
+        }
     }
     struct Message: Codable {
         let content: String
@@ -262,7 +333,7 @@ class OpenAIService {
                     ["type": "image_url", "image_url": ["url": "data:image/jpeg;base64,\(base64Image)"]]
                 ]
             ]],
-            "max_tokens": 500,
+            "max_tokens": 1000,  // Increased from 500 to handle item-level details
             "temperature": 0.1
         ]
         
@@ -303,6 +374,13 @@ class OpenAIService {
             guard let content = openAIResponse.choices.first?.message.content else {
                 throw OpenAIError.noResponseContent
             }
+            
+            // Check if the response was truncated due to token limit
+            if let finishReason = openAIResponse.choices.first?.finishReason, finishReason == "length" {
+                print("Warning: OpenAI response was truncated due to token limit")
+                // Continue processing but with awareness that it might be incomplete
+            }
+            
             print("OpenAI Response Content: \(content)")
             return try parseExpenseExtraction(from: content)
         } catch {
@@ -318,47 +396,52 @@ class OpenAIService {
     
     private func createExpenseExtractionPrompt() -> String {
         return """
-        You are an expert at extracting expense information from receipt images. Analyze the provided receipt image and extract the following information with high precision:
+        Extract detailed expense information from this receipt image. Return ONLY valid JSON (no markdown, no text).
 
-        REQUIRED FIELDS:
-        1. **Date**: The transaction date (format: YYYY-MM-DD). If no date is visible, use today's date.
-        2. **Merchant**: The business/store name exactly as shown on the receipt
-        3. **Amount**: The total amount paid (extract only the numerical value, no currency symbol)
-        4. **Currency**: The currency code (e.g., USD, EUR, GBP). Default to USD if not specified.
-        5. **Category**: Choose the most appropriate category from this exact list:
-           - Food & Dining, Transportation, Shopping, Entertainment, Bills & Utilities, Healthcare, Travel, Education, Business, Other
+        REQUIRED: date (YYYY-MM-DD), merchant, amount (final total), currency (default USD), category from: Food & Dining, Transportation, Shopping, Entertainment, Bills & Utilities, Healthcare, Travel, Education, Business, Other
 
-        OPTIONAL FIELDS:
-        6. **Description**: Brief description of items purchased (max 100 characters)
-        7. **Payment Method**: Choose from: Cash, Credit Card, Debit Card, Digital Payment, Bank Transfer, Check, Other
-        8. **Tax Amount**: Tax amount if clearly visible (numerical value only)
-        9. **Confidence**: Your confidence level in the extraction (0.0 to 1.0)
+        OPTIONAL: description, paymentMethod, taxAmount, confidence (0.0-1.0)
 
-        EXTRACTION RULES:
-        - Look for the TOTAL or FINAL amount, not subtotals
-        - Ignore tips unless they're part of the total
-        - For restaurants: use "Food & Dining" category
-        - For gas stations: use "Transportation" category
-        - For grocery stores: use "Food & Dining" or "Shopping" based on context
-        - If multiple items, categorize based on the primary expense type
-        - Be conservative with confidence scores - use 0.9+ only when very certain
+        ITEMS (if clearly visible): Extract individual items with: name, quantity, unitPrice, totalPrice, category (Food/Beverage/Product/Service/etc), description
 
-        RESPONSE FORMAT:
-        Return ONLY a valid JSON object with this exact structure (no additional text, markdown, or formatting):
+        FINANCIAL: subtotal, discounts, fees, tip, itemsTotal
 
+        RULES:
+        - Extract items ONLY if clearly itemized
+        - Use final total for "amount"
+        - Item categories: Food, Beverage, Product, Service, Electronics, Household, etc.
+        - If unclear, set items to null
+        - Ensure financial breakdown adds up
+
+        JSON FORMAT:
         {
             "date": "YYYY-MM-DD",
-            "merchant": "Business Name",
+            "merchant": "Store Name",
             "amount": 99.99,
             "currency": "USD",
-            "category": "Food & Dining",
-            "description": "Brief description of purchase",
+            "category": "Shopping",
+            "description": "Brief description",
             "paymentMethod": "Credit Card",
             "taxAmount": 8.25,
-            "confidence": 0.85
+            "confidence": 0.85,
+            "items": [
+                {
+                    "name": "Item Name",
+                    "quantity": 1,
+                    "unitPrice": 10.00,
+                    "totalPrice": 10.00,
+                    "category": "Product",
+                    "description": "Additional details"
+                }
+            ],
+            "subtotal": 91.74,
+            "discounts": null,
+            "fees": null,
+            "tip": null,
+            "itemsTotal": 91.74
         }
 
-        If you cannot extract certain information, use null for optional fields. For required fields, make reasonable assumptions and lower the confidence score accordingly.
+        For unclear receipts, set items/breakdown to null and extract basic expense info only.
         """
     }
     
@@ -366,12 +449,40 @@ class OpenAIService {
         let trimmedContent = content.trimmingCharacters(in: .whitespacesAndNewlines)
         
         // Remove markdown code blocks if present
-        let cleanedContent = trimmedContent
+        var cleanedContent = trimmedContent
             .replacingOccurrences(of: "```json", with: "")
             .replacingOccurrences(of: "```", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         
         print("Cleaned content for parsing: \(cleanedContent)")
+        
+        // Check if the JSON might be truncated (common issue with token limits)
+        if !cleanedContent.hasSuffix("}") {
+            print("Warning: JSON appears to be truncated. Attempting to fix...")
+            
+            // Try to fix common truncation issues
+            var fixedContent = cleanedContent
+            
+            // If it ends with a quote and comma, likely truncated in the middle of an item
+            if fixedContent.hasSuffix("\",") || fixedContent.hasSuffix("\"") {
+                // Find the last complete item and close the array properly
+                if let lastCompleteItemIndex = fixedContent.lastIndex(of: "}") {
+                    let truncationPoint = fixedContent.index(after: lastCompleteItemIndex)
+                    fixedContent = String(fixedContent[..<truncationPoint])
+                    
+                    // Close the items array and main object
+                    if fixedContent.contains("\"items\": [") && !fixedContent.contains("]") {
+                        fixedContent += "\n    ],\n    \"subtotal\": null,\n    \"discounts\": null,\n    \"fees\": null,\n    \"tip\": null,\n    \"itemsTotal\": null\n}"
+                    } else {
+                        fixedContent += "\n}"
+                    }
+                    
+                    print("Attempted to fix truncated JSON: \(fixedContent)")
+                }
+            }
+            
+            cleanedContent = fixedContent
+        }
         
         guard let jsonData = cleanedContent.data(using: .utf8) else {
             print("Failed to convert to data")
@@ -379,17 +490,64 @@ class OpenAIService {
         }
         
         do {
-            return try JSONDecoder().decode(OpenAIExpenseExtraction.self, from: jsonData)
+            let decoder = JSONDecoder()
+            // Handle potential null values gracefully
+            return try decoder.decode(OpenAIExpenseExtraction.self, from: jsonData)
         } catch {
             print("JSON Decoding Error: \(error)")
+            
+            // If we still have parsing issues, try to extract basic expense info without items
+            if let basicExpense = tryParseBasicExpense(from: cleanedContent) {
+                print("Falling back to basic expense extraction without items")
+                return basicExpense
+            }
+            
             throw OpenAIError.responseParsingFailed
         }
+    }
+    
+    // Fallback method to extract basic expense info if item parsing fails
+    private func tryParseBasicExpense(from content: String) -> OpenAIExpenseExtraction? {
+        // Try to extract just the basic fields without items using regex or simple parsing
+        guard let data = content.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return nil
+        }
+        
+        // Extract required fields
+        guard let date = json["date"] as? String,
+              let merchant = json["merchant"] as? String,
+              let amount = json["amount"] as? Double,
+              let currency = json["currency"] as? String,
+              let category = json["category"] as? String else {
+            return nil
+        }
+        
+        // Create basic expense without items
+        return OpenAIExpenseExtraction(
+            date: date,
+            merchant: merchant,
+            amount: amount,
+            currency: currency,
+            category: category,
+            description: json["description"] as? String,
+            paymentMethod: json["paymentMethod"] as? String,
+            taxAmount: json["taxAmount"] as? Double,
+            confidence: json["confidence"] as? Double ?? 0.7,
+            items: nil, // No items due to parsing failure
+            subtotal: json["subtotal"] as? Double,
+            discounts: json["discounts"] as? Double,
+            fees: json["fees"] as? Double,
+            tip: json["tip"] as? Double,
+            itemsTotal: json["itemsTotal"] as? Double
+        )
     }
 }
 
 enum OpenAIError: LocalizedError {
     case missingAPIKey, invalidURL, requestEncodingFailed, invalidResponse
     case invalidAPIKey, apiError(Int), noResponseContent, responseParsingFailed, imageProcessingFailed
+    case responseTruncated
     
     var errorDescription: String? {
         switch self {
@@ -402,6 +560,7 @@ enum OpenAIError: LocalizedError {
         case .noResponseContent: return "No content in OpenAI response"
         case .responseParsingFailed: return "Failed to parse OpenAI response"
         case .imageProcessingFailed: return "Failed to process image"
+        case .responseTruncated: return "Response was truncated - try with a simpler receipt"
         }
     }
 }
@@ -486,7 +645,9 @@ class ExpenseService: ObservableObject {
                     case .missingAPIKey:
                         errorMessage = "OpenAI API key not found. Please configure in settings."
                     case .responseParsingFailed:
-                        errorMessage = "Failed to parse receipt data. Try a clearer image."
+                        errorMessage = "Failed to parse receipt data. The response may be incomplete - try a clearer image or simpler receipt."
+                    case .responseTruncated:
+                        errorMessage = "Receipt has too many items for processing. Try processing a simpler receipt."
                     default:
                         errorMessage = "OpenAI processing failed: \(openAIError.localizedDescription)"
                     }
@@ -516,6 +677,18 @@ class ExpenseService: ObservableObject {
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let expenseDate = dateFormatter.date(from: extraction.date) ?? Date()
         
+        // Convert OpenAI items to ExpenseItems
+        let expenseItems: [ExpenseItem]? = extraction.items?.map { openAIItem in
+            ExpenseItem(
+                name: openAIItem.name,
+                quantity: openAIItem.quantity,
+                unitPrice: openAIItem.unitPrice,
+                totalPrice: openAIItem.totalPrice,
+                category: openAIItem.category,
+                description: openAIItem.description
+            )
+        }
+        
         return Expense(
             date: expenseDate,
             merchant: extraction.merchant,
@@ -524,7 +697,13 @@ class ExpenseService: ObservableObject {
             category: extraction.category,
             description: extraction.description,
             paymentMethod: extraction.paymentMethod,
-            taxAmount: extraction.taxAmount
+            taxAmount: extraction.taxAmount,
+            items: expenseItems,
+            subtotal: extraction.subtotal,
+            discounts: extraction.discounts,
+            fees: extraction.fees,
+            tip: extraction.tip,
+            itemsTotal: extraction.itemsTotal
         )
     }
     
@@ -542,6 +721,79 @@ class ExpenseService: ObservableObject {
     }
     
     func getMonthlyTotal() -> Double {
+        let calendar = Calendar.current
+        let now = Date()
+        let startOfMonth = calendar.dateInterval(of: .month, for: now)?.start ?? now
+        let endOfMonth = calendar.dateInterval(of: .month, for: now)?.end ?? now
+        
+        return expenses.filter { expense in
+            expense.date >= startOfMonth && expense.date < endOfMonth
+        }.reduce(0) { $0 + $1.amount }
+    }
+    
+    // MARK: - Item-Level Analytics
+    
+    func getItemsFromExpenses() -> [ExpenseItem] {
+        return expenses.compactMap { $0.items }.flatMap { $0 }
+    }
+    
+    func getTopItems(limit: Int = 10) -> [(item: String, totalSpent: Double, count: Int)] {
+        let allItems = getItemsFromExpenses()
+        let itemGroups = Dictionary(grouping: allItems) { $0.name.lowercased() }
+        
+        return itemGroups.map { (name, items) in
+            let totalSpent = items.reduce(0) { $0 + $1.totalPrice }
+            let count = items.count
+            return (item: items.first?.name ?? name, totalSpent: totalSpent, count: count)
+        }
+        .sorted { $0.totalSpent > $1.totalSpent }
+        .prefix(limit)
+        .map { $0 }
+    }
+    
+    func getSpendingByItemCategory() -> [String: Double] {
+        let allItems = getItemsFromExpenses()
+        let categoryGroups = Dictionary(grouping: allItems) { $0.category ?? "Other" }
+        
+        return categoryGroups.mapValues { items in
+            items.reduce(0) { $0 + $1.totalPrice }
+        }
+    }
+    
+    func getAverageItemPrice(for itemName: String) -> Double? {
+        let matchingItems = getItemsFromExpenses().filter { 
+            $0.name.lowercased().contains(itemName.lowercased()) 
+        }
+        
+        guard !matchingItems.isEmpty else { return nil }
+        
+        let totalPrice = matchingItems.reduce(0) { $0 + $1.totalPrice }
+        return totalPrice / Double(matchingItems.count)
+    }
+    
+    func getItemFrequency() -> [String: Int] {
+        let allItems = getItemsFromExpenses()
+        let itemGroups = Dictionary(grouping: allItems) { $0.name.lowercased() }
+        
+        return itemGroups.mapValues { $0.count }
+    }
+    
+    // MARK: - Currency Handling
+    
+    func getPrimaryCurrency() -> String {
+        // Get the most common currency in expenses
+        let currencyGroups = Dictionary(grouping: expenses) { $0.currency }
+        let mostCommonCurrency = currencyGroups.max { a, b in a.value.count < b.value.count }?.key
+        return mostCommonCurrency ?? "USD"
+    }
+    
+    func getTotalInPrimaryCurrency() -> Double {
+        // For simplicity, we'll just sum all expenses regardless of currency
+        // In a real app, you'd want to convert currencies
+        return expenses.reduce(0) { $0 + $1.amount }
+    }
+    
+    func getMonthlyTotalInPrimaryCurrency() -> Double {
         let calendar = Calendar.current
         let now = Date()
         let startOfMonth = calendar.dateInterval(of: .month, for: now)?.start ?? now
@@ -646,7 +898,14 @@ class ExpenseService: ObservableObject {
                 category: "Food & Dining",
                 description: "Morning coffee and pastry",
                 paymentMethod: "Credit Card",
-                taxAmount: 0.38
+                taxAmount: 0.38,
+                items: [
+                    ExpenseItem(name: "Grande Latte", quantity: 1, unitPrice: 4.75, totalPrice: 4.75, category: "Beverage", description: "Oat milk"),
+                    ExpenseItem(name: "Blueberry Muffin", quantity: 1, unitPrice: 2.95, totalPrice: 2.95, category: "Food", description: "Warmed")
+                ],
+                subtotal: 7.70,
+                tip: 1.15,
+                itemsTotal: 7.70
             ),
             Expense(
                 date: calendar.date(byAdding: .day, value: -2, to: now) ?? now,
@@ -656,7 +915,30 @@ class ExpenseService: ObservableObject {
                 category: "Transportation",
                 description: "Fuel",
                 paymentMethod: "Debit Card",
-                taxAmount: 3.62
+                taxAmount: 3.62,
+                items: [
+                    ExpenseItem(name: "Regular Gasoline", quantity: 12.5, unitPrice: 3.45, totalPrice: 43.13, category: "Fuel", description: "12.5 gallons")
+                ],
+                subtotal: 43.13,
+                fees: 2.07,
+                itemsTotal: 43.13
+            ),
+            Expense(
+                date: calendar.date(byAdding: .day, value: -3, to: now) ?? now,
+                merchant: "Tesco Extra",
+                amount: 28.50,
+                currency: "EUR",
+                category: "Shopping",
+                description: "Grocery shopping",
+                paymentMethod: "Credit Card",
+                taxAmount: 2.85,
+                items: [
+                    ExpenseItem(name: "Organic Bananas", quantity: 1.2, unitPrice: 2.99, totalPrice: 3.59, category: "Food", description: "1.2 kg"),
+                    ExpenseItem(name: "Whole Milk", quantity: 2, unitPrice: 1.25, totalPrice: 2.50, category: "Food", description: "1L cartons"),
+                    ExpenseItem(name: "Bread Loaf", quantity: 1, unitPrice: 1.89, totalPrice: 1.89, category: "Food", description: "Whole grain")
+                ],
+                subtotal: 25.65,
+                itemsTotal: 7.98
             ),
             Expense(
                 date: calendar.date(byAdding: .day, value: -3, to: now) ?? now,
@@ -666,7 +948,13 @@ class ExpenseService: ObservableObject {
                 category: "Shopping",
                 description: "Household items",
                 paymentMethod: "Credit Card",
-                taxAmount: 1.92
+                taxAmount: 1.92,
+                items: [
+                    ExpenseItem(name: "Tide Laundry Detergent", quantity: 1, unitPrice: 12.99, totalPrice: 12.99, category: "Household", description: "64 oz"),
+                    ExpenseItem(name: "Paper Towels", quantity: 2, unitPrice: 4.50, totalPrice: 9.00, category: "Household", description: "6-pack")
+                ],
+                subtotal: 21.99,
+                itemsTotal: 21.99
             ),
             Expense(
                 date: calendar.date(byAdding: .day, value: -5, to: now) ?? now,
@@ -676,7 +964,13 @@ class ExpenseService: ObservableObject {
                 category: "Food & Dining",
                 description: "Burrito bowl and drink",
                 paymentMethod: "Digital Payment",
-                taxAmount: 1.03
+                taxAmount: 1.03,
+                items: [
+                    ExpenseItem(name: "Chicken Burrito Bowl", quantity: 1, unitPrice: 9.45, totalPrice: 9.45, category: "Food", description: "Brown rice, black beans, mild salsa"),
+                    ExpenseItem(name: "Fountain Drink", quantity: 1, unitPrice: 2.75, totalPrice: 2.75, category: "Beverage", description: "Large")
+                ],
+                subtotal: 12.20,
+                itemsTotal: 12.20
             ),
             Expense(
                 date: calendar.date(byAdding: .day, value: -7, to: now) ?? now,
@@ -686,7 +980,15 @@ class ExpenseService: ObservableObject {
                 category: "Shopping",
                 description: "Office supplies",
                 paymentMethod: "Credit Card",
-                taxAmount: 7.20
+                taxAmount: 7.20,
+                items: [
+                    ExpenseItem(name: "Wireless Mouse", quantity: 1, unitPrice: 29.99, totalPrice: 29.99, category: "Electronics", description: "Logitech MX Master 3"),
+                    ExpenseItem(name: "USB-C Hub", quantity: 1, unitPrice: 45.99, totalPrice: 45.99, category: "Electronics", description: "7-in-1"),
+                    ExpenseItem(name: "Notebook", quantity: 3, unitPrice: 4.99, totalPrice: 14.97, category: "Office", description: "Lined, A5 size")
+                ],
+                subtotal: 90.95,
+                discounts: -8.16,
+                itemsTotal: 90.95
             )
         ]
         
@@ -695,7 +997,7 @@ class ExpenseService: ObservableObject {
         }
         
         saveExpensesToUserDefaults()
-        print("Added \(sampleExpenses.count) sample expenses for first launch")
+        print("Added \(sampleExpenses.count) sample expenses with item details for first launch")
     }
 }
 
@@ -734,5 +1036,61 @@ enum BackupStatus {
         case .outdated: return "exclamationmark.icloud"
         case .notBackedUp: return "xmark.icloud"
         }
+    }
+}
+
+// MARK: - Currency Formatting Extension
+
+extension Double {
+    func formatted(currency: String) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = currency
+        formatter.maximumFractionDigits = 2
+        formatter.minimumFractionDigits = 2
+        
+        return formatter.string(from: NSNumber(value: self)) ?? "\(currency) \(String(format: "%.2f", self))"
+    }
+}
+
+extension Expense {
+    var formattedAmount: String {
+        return amount.formatted(currency: currency)
+    }
+    
+    var formattedTaxAmount: String? {
+        guard let taxAmount = taxAmount else { return nil }
+        return taxAmount.formatted(currency: currency)
+    }
+    
+    var formattedSubtotal: String? {
+        guard let subtotal = subtotal else { return nil }
+        return subtotal.formatted(currency: currency)
+    }
+    
+    var formattedDiscounts: String? {
+        guard let discounts = discounts else { return nil }
+        return discounts.formatted(currency: currency)
+    }
+    
+    var formattedFees: String? {
+        guard let fees = fees else { return nil }
+        return fees.formatted(currency: currency)
+    }
+    
+    var formattedTip: String? {
+        guard let tip = tip else { return nil }
+        return tip.formatted(currency: currency)
+    }
+}
+
+extension ExpenseItem {
+    func formattedTotalPrice(currency: String) -> String {
+        return totalPrice.formatted(currency: currency)
+    }
+    
+    func formattedUnitPrice(currency: String) -> String? {
+        guard let unitPrice = unitPrice else { return nil }
+        return unitPrice.formatted(currency: currency)
     }
 }
