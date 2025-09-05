@@ -299,9 +299,11 @@ struct ExpenseRowView: View {
                     
                     if expense.items != nil && !expense.items!.isEmpty {
                         Button(action: {
+                            print("Button tapped for expense: \(expense.merchant), current state: \(showingItemDetails)")
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 showingItemDetails.toggle()
                             }
+                            print("New state: \(showingItemDetails)")
                         }) {
                             Image(systemName: showingItemDetails ? "chevron.up" : "chevron.down")
                                 .font(.caption)
@@ -309,19 +311,11 @@ struct ExpenseRowView: View {
                                 .frame(width: 24, height: 24) // Larger tap target
                         }
                         .buttonStyle(PlainButtonStyle())
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            // Backup gesture handler
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                showingItemDetails.toggle()
-                            }
-                        }
                     }
                 }
             }
             .padding()
             .background(Color(.systemBackground))
-            .id(expense.id) // Add unique identifier to prevent state conflicts
             
             // Item details section
             if showingItemDetails, let items = expense.items, !items.isEmpty {
@@ -461,14 +455,11 @@ struct ExpenseRowView: View {
                 }
                 .padding(.bottom)
             }
-            .transition(.asymmetric(
-                insertion: .opacity.combined(with: .move(edge: .top)),
-                removal: .opacity.combined(with: .move(edge: .top))
-            ))
         }
         .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: Color.black.opacity(0.05), radius: 1, x: 0, y: 1)
+        .id("expense-\(expense.id)-\(showingItemDetails)")
     }
     
     private func categoryIcon(for category: String) -> String {
