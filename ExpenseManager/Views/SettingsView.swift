@@ -12,6 +12,7 @@ struct SettingsView: View {
     @State private var showingMailAlert = false
     @State private var showingEmailOptions = false
     @State private var showingSampleDataAlert = false
+    @State private var showingDataResetView = false
     
     var body: some View {
         NavigationView {
@@ -19,6 +20,7 @@ struct SettingsView: View {
                 connectionStatusSection
                 configurationSection
                 backupStatusSection
+                dataManagementSection
                 feedbackSection
                 developmentSection
                 aboutSection
@@ -83,6 +85,9 @@ struct SettingsView: View {
             }
         } message: {
             Text("This will add 5 sample expenses to help you explore the app. Your existing data will be preserved.")
+        }
+        .sheet(isPresented: $showingDataResetView) {
+            DataResetView()
         }
     }
     
@@ -285,6 +290,25 @@ struct SettingsView: View {
         // Show a brief feedback that email was copied
         let impactFeedback = UIImpactFeedbackGenerator(style: .light)
         impactFeedback.impactOccurred()
+    }
+    
+    private var dataManagementSection: some View {
+        Section("Data Management") {
+            Button(action: {
+                showingDataResetView = true
+            }) {
+                HStack {
+                    Image(systemName: "trash.circle")
+                        .foregroundColor(.red)
+                    Text("Reset App Data")
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.secondary)
+                        .font(.caption)
+                }
+            }
+            .foregroundColor(.primary)
+        }
     }
     
     private var developmentSection: some View {

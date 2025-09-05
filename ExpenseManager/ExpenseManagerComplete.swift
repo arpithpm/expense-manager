@@ -218,6 +218,26 @@ class KeychainService {
         let status = SecItemDelete(deleteQuery as CFDictionary)
         return status == errSecSuccess || status == errSecItemNotFound
     }
+    
+    // Convenience methods for API key management
+    func saveAPIKey(_ key: String) -> Bool {
+        return save(key, for: .openaiKey)
+    }
+    
+    func getAPIKey() -> String? {
+        return retrieve(for: .openaiKey)
+    }
+    
+    func deleteAPIKey() throws {
+        let success = delete(for: .openaiKey)
+        if !success {
+            throw NSError(domain: "KeychainError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to delete API key from keychain"])
+        }
+    }
+    
+    func hasValidAPIKey() -> Bool {
+        return getAPIKey() != nil
+    }
 }
 
 @MainActor
@@ -795,7 +815,7 @@ class ExpenseService: ObservableObject {
         }
     }
     
-    private func saveExpensesToUserDefaults() {
+    func saveExpensesToUserDefaults() {
         if let data = try? JSONEncoder().encode(expenses) {
             userDefaults.set(data, forKey: expensesKey)
             // Update backup timestamp when data is saved
@@ -1067,5 +1087,184 @@ extension ExpenseItem {
     func formattedUnitPrice(currency: String) -> String? {
         guard let unitPrice = unitPrice else { return nil }
         return unitPrice.formatted(currency: currency)
+    }
+}
+
+// MARK: - Data Reset Manager
+class DataResetManager: ObservableObject {
+    static let shared = DataResetManager()
+    
+    enum ResetCategory: String, CaseIterable {
+        case allExpenses = "All Expenses"
+        case sampleExpenses = "Sample Expenses Only"
+        case analyticsCache = "Analytics Cache"
+        case openAIKey = "OpenAI API Key"
+        case openAIHistory = "OpenAI Usage History"
+        case userPreferences = "User Preferences"
+        case firstLaunchFlag = "First Launch Flag"
+        case backupData = "Backup Timestamps"
+        case completeReset = "Complete Reset (Everything)"
+        
+        var description: String {
+            switch self {
+            case .allExpenses:
+                return "Remove all stored expenses from the app"
+            case .sampleExpenses:
+                return "Remove only the sample/demo expenses"
+            case .analyticsCache:
+                return "Clear cached analytics and calculations"
+            case .openAIKey:
+                return "Remove stored OpenAI API key from Keychain"
+            case .openAIHistory:
+                return "Clear OpenAI usage history and cache"
+            case .userPreferences:
+                return "Reset app settings to defaults"
+            case .firstLaunchFlag:
+                return "Reset first launch flag (will show sample data again)"
+            case .backupData:
+                return "Clear backup timestamps and sync data"
+            case .completeReset:
+                return "Reset everything - returns app to fresh install state"
+            }
+        }
+        
+        var icon: String {
+            switch self {
+            case .allExpenses, .sampleExpenses:
+                return "trash"
+            case .analyticsCache:
+                return "chart.bar"
+            case .openAIKey:
+                return "key"
+            case .openAIHistory:
+                return "clock.arrow.circlepath"
+            case .userPreferences:
+                return "gearshape"
+            case .firstLaunchFlag:
+                return "flag"
+            case .backupData:
+                return "icloud"
+            case .completeReset:
+                return "trash.circle"
+            }
+        }
+        
+        var isDestructive: Bool {
+            switch self {
+            case .allExpenses, .openAIKey, .completeReset:
+                return true
+            default:
+                return false
+            }
+        }
+    }
+    
+    private let keychainService = KeychainService.shared
+    private let userDefaults = UserDefaults.standard
+    
+    private init() {}
+    
+    @MainActor
+    func resetData(categories: Set<ResetCategory>) async throws {
+        let expenseService = ExpenseService.shared
+        for category in categories {
+            try await resetCategory(category, expenseService: expenseService)
+        }
+    }
+    
+    @MainActor
+    private func resetCategory(_ category: ResetCategory, expenseService: ExpenseService) async throws {
+        switch category {
+        case .allExpenses:
+            expenseService.expenses.removeAll()
+            expenseService.saveExpensesToUserDefaults()
+            
+        case .sampleExpenses:
+            let sampleMerchants = ["Sample Grocery Store", "Demo Restaurant", "Test Gas Station", 
+                                 "Example Coffee Shop", "Sample Pharmacy"]
+            expenseService.expenses.removeAll { expense in
+                sampleMerchants.contains(expense.merchant)
+            }
+            expenseService.saveExpensesToUserDefaults()
+            
+        case .analyticsCache:
+            // Clear any cached analytics (if we had any)
+            // For now, this is mostly a placeholder as analytics are calculated on-demand
+            break
+            
+        case .openAIKey:
+            try keychainService.deleteAPIKey()
+            
+        case .openAIHistory:
+            // Clear any OpenAI usage history (placeholder for future implementation)
+            userDefaults.removeObject(forKey: "OpenAIUsageHistory")
+            userDefaults.removeObject(forKey: "OpenAILastUsed")
+            
+        case .userPreferences:
+            // Remove app-specific settings while preserving system settings
+            let keysToRemove = ["LastBackupDate", "UserSelectedCurrency", 
+                              "NotificationsEnabled", "AppTheme"]
+            for key in keysToRemove {
+                userDefaults.removeObject(forKey: key)
+            }
+            
+        case .firstLaunchFlag:
+            userDefaults.removeObject(forKey: "HasLaunchedBefore")
+            
+        case .backupData:
+            userDefaults.removeObject(forKey: "LastBackupDate")
+            userDefaults.removeObject(forKey: "BackupStatus")
+            
+        case .completeReset:
+            // Reset everything
+            expenseService.expenses.removeAll()
+            expenseService.saveExpensesToUserDefaults()
+            try? keychainService.deleteAPIKey()
+            
+            // Clear all UserDefaults for this app
+            let allKeys = ["SavedExpenses", "HasLaunchedBefore", "LastBackupDate",
+                          "OpenAIUsageHistory", "OpenAILastUsed", "UserSelectedCurrency",
+                          "NotificationsEnabled", "AppTheme", "BackupStatus"]
+            for key in allKeys {
+                userDefaults.removeObject(forKey: key)
+            }
+        }
+    }
+    
+    @MainActor
+    func getItemCount(for category: ResetCategory) -> Int {
+        let expenseService = ExpenseService.shared
+        switch category {
+        case .allExpenses:
+            return expenseService.expenses.count
+        case .sampleExpenses:
+            let sampleMerchants = ["Sample Grocery Store", "Demo Restaurant", "Test Gas Station", 
+                                 "Example Coffee Shop", "Sample Pharmacy"]
+            return expenseService.expenses.filter { expense in
+                sampleMerchants.contains(expense.merchant)
+            }.count
+        case .openAIKey:
+            return keychainService.hasValidAPIKey() ? 1 : 0
+        case .userPreferences, .firstLaunchFlag, .backupData, .analyticsCache, .openAIHistory:
+            return 1 // These are single settings
+        case .completeReset:
+            return expenseService.expenses.count + (keychainService.hasValidAPIKey() ? 1 : 0)
+        }
+    }
+    
+    @MainActor
+    func getResetSummary(for categories: Set<ResetCategory>) -> String {
+        var summary: [String] = []
+        
+        for category in categories.sorted(by: { $0.rawValue < $1.rawValue }) {
+            let count = getItemCount(for: category)
+            if count > 0 {
+                summary.append("• \(category.rawValue) (\(count) item\(count == 1 ? "" : "s"))")
+            } else {
+                summary.append("• \(category.rawValue)")
+            }
+        }
+        
+        return summary.joined(separator: "\n")
     }
 }

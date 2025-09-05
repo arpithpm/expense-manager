@@ -8,12 +8,14 @@
 5. [AI Processing](#ai-processing)
 6. [Item-Level Tracking](#item-level-tracking)
 7. [Multi-Currency Support](#multi-currency-support)
-8. [API Integration](#api-integration)
-9. [User Interface](#user-interface)
-10. [Error Handling](#error-handling)
-11. [Setup Instructions](#setup-instructions)
-12. [Technical Implementation](#technical-implementation)
-13. [Troubleshooting](#troubleshooting)
+8. [Multi-Currency Support](#multi-currency-support)
+9. [Data Management & Reset](#data-management--reset)
+10. [API Integration](#api-integration)
+11. [User Interface](#user-interface)
+12. [Error Handling](#error-handling)
+13. [Setup Instructions](#setup-instructions)
+14. [Technical Implementation](#technical-implementation)
+15. [Troubleshooting](#troubleshooting)
 
 ## Overview
 
@@ -64,6 +66,14 @@ Transform receipt photos into detailed, structured expense data with individual 
 - **No Cloud Dependency**: No external database requirements
 - **Keychain Integration**: Secure API credential storage
 - **Photo Privacy**: Images processed but not stored permanently
+
+### 🗑️ **Data Management & Reset**
+- **Selective Reset**: Choose specific data categories to delete
+- **Granular Control**: Reset expenses, settings, or OpenAI configuration independently
+- **Safety Features**: Confirmation dialogs and impact previews
+- **Complete Reset**: Option to return app to fresh install state
+- **Smart Categorization**: Organized reset options by data type and impact level
+- **Item Counting**: Shows exactly how many items will be affected
 
 ## Architecture
 
@@ -281,6 +291,204 @@ extension Double {
     }
 }
 ```
+
+## Data Management & Reset
+
+### Overview
+
+The Data Management & Reset feature provides users with comprehensive control over their app data through a sophisticated reset system. This feature allows selective deletion of different data categories while maintaining data integrity and user safety.
+
+### Reset Categories
+
+#### 💰 **Expense Data**
+- **All Expenses**: Complete removal of stored expense records
+- **Sample Expenses Only**: Selective removal of demo/sample data
+- **Analytics Cache**: Clear calculated analytics and cached summaries
+
+#### 🤖 **OpenAI Configuration**
+- **API Key**: Remove stored OpenAI credentials from Keychain
+- **Usage History**: Clear API usage logs and history (future feature)
+
+#### ⚙️ **App Settings**
+- **User Preferences**: Reset customizable app settings to defaults
+- **First Launch Flag**: Reset to show onboarding/sample data again
+- **Backup Timestamps**: Clear backup and sync metadata
+
+#### 🧹 **Complete Reset**
+- **Everything**: Return app to fresh installation state
+- **Nuclear Option**: Removes all data, settings, and configurations
+
+### User Interface Design
+
+#### Main Reset View
+```
+┌─────────────────────────────────────┐
+│  🗑️ Reset App Data                  │
+│                                     │
+│  💰 Expense Data                    │
+│  ├─ All Expenses (127)       [🔄]  │
+│  ├─ Sample Data Only (5)     [🔄]  │
+│  └─ Analytics Cache          [🔄]  │
+│                                     │
+│  🤖 OpenAI Configuration            │
+│  ├─ API Key (1)              [🔄]  │
+│  └─ Usage History           [🔄]  │
+│                                     │
+│  ⚙️ App Settings                    │
+│  ├─ User Preferences        [🔄]  │
+│  ├─ First Launch Flag       [🔄]  │
+│  └─ Backup Data             [🔄]  │
+│                                     │
+│  🧹 Complete Reset                  │
+│  └─ Reset Everything        [🔄]  │
+│                                     │
+│     [Cancel]    [Reset Data]       │
+└─────────────────────────────────────┘
+```
+
+#### Safety Features
+- **Visual Indicators**: Red colors for destructive actions
+- **Item Counts**: Shows exact number of items to be deleted
+- **Toggle Groups**: Organized by impact level and data type
+- **Smart Logic**: Complete reset deselects other options automatically
+
+#### Confirmation Flow
+```
+Selection → Preview → Double Confirmation → Progress → Success
+```
+
+### Technical Implementation
+
+#### DataResetManager Class
+```swift
+class DataResetManager: ObservableObject {
+    enum ResetCategory: String, CaseIterable {
+        case allExpenses = "All Expenses"
+        case sampleExpenses = "Sample Expenses Only"
+        case analyticsCache = "Analytics Cache"
+        case openAIKey = "OpenAI API Key"
+        case openAIHistory = "OpenAI Usage History"
+        case userPreferences = "User Preferences"
+        case firstLaunchFlag = "First Launch Flag"
+        case backupData = "Backup Timestamps"
+        case completeReset = "Complete Reset (Everything)"
+    }
+    
+    @MainActor
+    func resetData(categories: Set<ResetCategory>) async throws
+    func getItemCount(for category: ResetCategory) -> Int
+    func getResetSummary(for categories: Set<ResetCategory>) -> String
+}
+```
+
+#### Reset Operations
+
+##### Expense Data Reset
+```swift
+case .allExpenses:
+    expenseService.expenses.removeAll()
+    expenseService.saveExpensesToUserDefaults()
+
+case .sampleExpenses:
+    let sampleMerchants = ["Sample Grocery Store", "Demo Restaurant", ...]
+    expenseService.expenses.removeAll { expense in
+        sampleMerchants.contains(expense.merchant)
+    }
+```
+
+##### OpenAI Configuration Reset
+```swift
+case .openAIKey:
+    try keychainService.deleteAPIKey()
+
+case .openAIHistory:
+    userDefaults.removeObject(forKey: "OpenAIUsageHistory")
+    userDefaults.removeObject(forKey: "OpenAILastUsed")
+```
+
+##### Settings Reset
+```swift
+case .userPreferences:
+    let keysToRemove = ["UserSelectedCurrency", "NotificationsEnabled", ...]
+    for key in keysToRemove {
+        userDefaults.removeObject(forKey: key)
+    }
+```
+
+##### Complete Reset
+```swift
+case .completeReset:
+    expenseService.expenses.removeAll()
+    try? keychainService.deleteAPIKey()
+    // Clear all app-specific UserDefaults
+    let allKeys = ["SavedExpenses", "HasLaunchedBefore", ...]
+    for key in allKeys {
+        userDefaults.removeObject(forKey: key)
+    }
+```
+
+### Access Integration
+
+#### Settings View Integration
+The reset feature is accessible through:
+1. **Settings Tab** → Data Management Section
+2. **Prominent Placement**: Between backup status and feedback sections
+3. **Clear Labeling**: "Reset App Data" with trash icon
+4. **Progressive Disclosure**: Detailed options revealed on tap
+
+```swift
+private var dataManagementSection: some View {
+    Section("Data Management") {
+        Button(action: { showingDataResetView = true }) {
+            HStack {
+                Image(systemName: "trash.circle")
+                    .foregroundColor(.red)
+                Text("Reset App Data")
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+}
+```
+
+### User Experience Flow
+
+#### 1. **Discovery**: Settings → Data Management → Reset App Data
+#### 2. **Selection**: Toggle categories with visual feedback
+#### 3. **Preview**: Real-time summary of selected items
+#### 4. **Confirmation**: Clear dialog showing impact
+#### 5. **Execution**: Progress indicator with feedback
+#### 6. **Completion**: Success message with restart recommendation
+
+### Error Handling
+
+#### Keychain Errors
+- **API Key Deletion**: Handles keychain access failures gracefully
+- **User Feedback**: Clear error messages for keychain issues
+- **Fallback**: Continues with other reset operations if one fails
+
+#### UserDefaults Errors
+- **Atomic Operations**: Each category reset is independent
+- **Recovery**: Partial success reporting if some operations fail
+- **Validation**: Confirms successful deletion before proceeding
+
+### Future Enhancements
+
+#### Planned Features
+- **Selective Date Ranges**: Choose specific time periods for expense deletion
+- **Export Before Reset**: Backup data before deletion
+- **Usage Analytics**: Show storage space freed after reset
+- **Undo Capability**: Temporary recovery for accidental deletions
+- **Cloud Sync Integration**: Handle cloud data in reset operations
+
+#### Extensibility
+The reset system is designed for easy expansion:
+- **Plugin Architecture**: Easy addition of new reset categories
+- **Async Operations**: Handles long-running reset operations
+- **Progress Tracking**: Ready for detailed progress reporting
+- **Batch Operations**: Efficient handling of large datasets
 
 ## API Integration
 
