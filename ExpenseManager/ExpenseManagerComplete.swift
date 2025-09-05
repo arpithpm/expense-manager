@@ -329,6 +329,154 @@ class ConfigurationManager: ObservableObject {
     func getOpenAIKey() -> String? { keychain.retrieve(for: .openaiKey) }
 }
 
+// MARK: - Subscription Management
+
+enum SubscriptionTier: String, CaseIterable {
+    case free = "free"
+    case premium = "premium"
+    case userAPIKey = "userAPIKey"
+    
+    var displayName: String {
+        switch self {
+        case .free: return "Free (7/day)"
+        case .premium: return "Premium ($0.99/month)"
+        case .userAPIKey: return "Own API Key (Unlimited)"
+        }
+    }
+}
+
+@MainActor
+class SubscriptionManager: ObservableObject {
+    static let shared = SubscriptionManager()
+    
+    @Published var currentTier: SubscriptionTier = .free
+    @Published var dailyScansUsed: Int = 0
+    @Published var lastResetDate: Date = Date()
+    @Published var userAPIKey: String = ""
+    @Published var isSubscribed: Bool = false
+    
+    private let dailyFreeLimit = 7
+    private let userDefaults = UserDefaults.standard
+    
+    private init() {
+        loadFromUserDefaults()
+        checkDailyReset()
+    }
+    
+    var scansRemainingToday: Int {
+        if currentTier != .free { return Int.max }
+        checkDailyReset()
+        return max(0, dailyFreeLimit - dailyScansUsed)
+    }
+    
+    var canScanToday: Bool {
+        switch currentTier {
+        case .free:
+            checkDailyReset()
+            return dailyScansUsed < dailyFreeLimit
+        case .premium:
+            return isSubscribed
+        case .userAPIKey:
+            return !userAPIKey.isEmpty
+        }
+    }
+    
+    var shouldUseUserAPIKey: Bool {
+        return currentTier == .userAPIKey && !userAPIKey.isEmpty
+    }
+    
+    func consumeScan() -> Bool {
+        switch currentTier {
+        case .free:
+            checkDailyReset()
+            if dailyScansUsed < dailyFreeLimit {
+                dailyScansUsed += 1
+                saveToUserDefaults()
+                return true
+            }
+            return false
+        case .premium:
+            return isSubscribed
+        case .userAPIKey:
+            return !userAPIKey.isEmpty
+        }
+    }
+    
+    func setUserAPIKey(_ key: String) {
+        userAPIKey = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !userAPIKey.isEmpty {
+            currentTier = .userAPIKey
+        } else if currentTier == .userAPIKey {
+            currentTier = .free
+        }
+        saveToUserDefaults()
+    }
+    
+    func setPremiumSubscription(_ isActive: Bool) {
+        isSubscribed = isActive
+        if isActive {
+            currentTier = .premium
+        } else if currentTier == .premium {
+            currentTier = userAPIKey.isEmpty ? .free : .userAPIKey
+        }
+        saveToUserDefaults()
+    }
+    
+    func setTier(_ tier: SubscriptionTier) {
+        currentTier = tier
+        saveToUserDefaults()
+    }
+    
+    private func checkDailyReset() {
+        let calendar = Calendar.current
+        if !calendar.isDate(lastResetDate, inSameDayAs: Date()) {
+            dailyScansUsed = 0
+            lastResetDate = Date()
+            saveToUserDefaults()
+        }
+    }
+    
+    private func loadFromUserDefaults() {
+        if let tierString = userDefaults.string(forKey: "subscriptionTier"),
+           let tier = SubscriptionTier(rawValue: tierString) {
+            currentTier = tier
+        }
+        dailyScansUsed = userDefaults.integer(forKey: "dailyScansUsed")
+        lastResetDate = userDefaults.object(forKey: "lastResetDate") as? Date ?? Date()
+        userAPIKey = userDefaults.string(forKey: "userAPIKey") ?? ""
+        isSubscribed = userDefaults.bool(forKey: "isSubscribed")
+    }
+    
+    private func saveToUserDefaults() {
+        userDefaults.set(currentTier.rawValue, forKey: "subscriptionTier")
+        userDefaults.set(dailyScansUsed, forKey: "dailyScansUsed")
+        userDefaults.set(lastResetDate, forKey: "lastResetDate")
+        userDefaults.set(userAPIKey, forKey: "userAPIKey")
+        userDefaults.set(isSubscribed, forKey: "isSubscribed")
+    }
+    
+    func getUpgradeMessage() -> String {
+        switch currentTier {
+        case .free:
+            return "You've used all 7 free scans today. Choose an option to continue:"
+        case .premium:
+            return isSubscribed ? "" : "Premium subscription required for unlimited scans."
+        case .userAPIKey:
+            return userAPIKey.isEmpty ? "Please enter your OpenAI API key to continue." : ""
+        }
+    }
+    
+    func reset() {
+        currentTier = .free
+        dailyScansUsed = 0
+        lastResetDate = Date()
+        userAPIKey = ""
+        isSubscribed = false
+        saveToUserDefaults()
+    }
+}
+}
+
 
 class OpenAIService {
     static let shared = OpenAIService()
@@ -337,6 +485,12 @@ class OpenAIService {
     private let baseURL = "https://api.openai.com/v1/chat/completions"
     
     func extractExpenseFromReceipt(_ image: UIImage) async throws -> OpenAIExpenseExtraction {
+        // Check if user can scan today
+        let subscriptionManager = SubscriptionManager.shared
+        guard subscriptionManager.canScanToday else {
+            throw OpenAIError.dailyLimitReached
+        }
+        
         guard let imageData = image.jpegData(compressionQuality: 0.8) else {
             throw OpenAIError.imageProcessingFailed
         }
@@ -357,9 +511,19 @@ class OpenAIService {
             "temperature": 0.1
         ]
         
-        guard let apiKey = KeychainService.shared.retrieve(for: .openaiKey),
-              let url = URL(string: baseURL) else {
-            throw OpenAIError.missingAPIKey
+        // Determine which API key to use
+        let apiKey: String
+        if subscriptionManager.shouldUseUserAPIKey {
+            apiKey = subscriptionManager.userAPIKey
+        } else {
+            guard let configAPIKey = KeychainService.shared.retrieve(for: .openaiKey) else {
+                throw OpenAIError.missingAPIKey
+            }
+            apiKey = configAPIKey
+        }
+        
+        guard let url = URL(string: baseURL) else {
+            throw OpenAIError.invalidResponse
         }
         
         var request = URLRequest(url: url)
@@ -567,7 +731,7 @@ class OpenAIService {
 enum OpenAIError: LocalizedError {
     case missingAPIKey, invalidURL, requestEncodingFailed, invalidResponse
     case invalidAPIKey, apiError(Int), noResponseContent, responseParsingFailed, imageProcessingFailed
-    case responseTruncated
+    case responseTruncated, dailyLimitReached
     
     var errorDescription: String? {
         switch self {
@@ -581,6 +745,7 @@ enum OpenAIError: LocalizedError {
         case .responseParsingFailed: return "Failed to parse OpenAI response"
         case .imageProcessingFailed: return "Failed to process image"
         case .responseTruncated: return "Response was truncated - try with a simpler receipt"
+        case .dailyLimitReached: return "Daily scan limit reached"
         }
     }
 }
@@ -616,9 +781,16 @@ class ExpenseService: ObservableObject {
     
     func processReceiptPhotos(_ photoItems: [PhotosPickerItem]) async -> Int {
         var processedCount = 0
+        let subscriptionManager = SubscriptionManager.shared
         
         for photoItem in photoItems {
             do {
+                // Check if user can scan before processing
+                guard subscriptionManager.canScanToday else {
+                    errorMessage = subscriptionManager.getUpgradeMessage()
+                    break
+                }
+                
                 // Debug PhotosPickerItem properties
                 let assetIdentifier = photoItem.itemIdentifier
                 print("Captured asset identifier during processing: \(assetIdentifier ?? "nil")")
@@ -632,6 +804,9 @@ class ExpenseService: ObservableObject {
                     
                     // Save expense locally
                     _ = addExpense(expense)
+                    
+                    // Consume a scan from the daily/subscription limit
+                    _ = subscriptionManager.consumeScan()
                     
                     processedCount += 1
                 }
@@ -650,6 +825,8 @@ class ExpenseService: ObservableObject {
                         errorMessage = "Failed to parse receipt data. The response may be incomplete - try a clearer image or simpler receipt."
                     case .responseTruncated:
                         errorMessage = "Receipt has too many items for processing. Try processing a simpler receipt."
+                    case .dailyLimitReached:
+                        errorMessage = subscriptionManager.getUpgradeMessage()
                     default:
                         errorMessage = "OpenAI processing failed: \(openAIError.localizedDescription)"
                     }
@@ -1100,6 +1277,7 @@ class DataResetManager: ObservableObject {
         case analyticsCache = "Analytics Cache"
         case openAIKey = "OpenAI API Key"
         case openAIHistory = "OpenAI Usage History"
+        case subscriptionData = "Subscription & Usage Data"
         case userPreferences = "User Preferences"
         case firstLaunchFlag = "First Launch Flag"
         case backupData = "Backup Timestamps"
@@ -1117,6 +1295,8 @@ class DataResetManager: ObservableObject {
                 return "Remove stored OpenAI API key from Keychain"
             case .openAIHistory:
                 return "Clear OpenAI usage history and cache"
+            case .subscriptionData:
+                return "Reset subscription tier, daily scan counts, and user API key"
             case .userPreferences:
                 return "Reset app settings to defaults"
             case .firstLaunchFlag:
@@ -1138,6 +1318,8 @@ class DataResetManager: ObservableObject {
                 return "key"
             case .openAIHistory:
                 return "clock.arrow.circlepath"
+            case .subscriptionData:
+                return "creditcard"
             case .userPreferences:
                 return "gearshape"
             case .firstLaunchFlag:
@@ -1200,6 +1382,9 @@ class DataResetManager: ObservableObject {
             userDefaults.removeObject(forKey: "OpenAIUsageHistory")
             userDefaults.removeObject(forKey: "OpenAILastUsed")
             
+        case .subscriptionData:
+            SubscriptionManager.shared.reset()
+            
         case .userPreferences:
             // Remove app-specific settings while preserving system settings
             let keysToRemove = ["LastBackupDate", "UserSelectedCurrency", 
@@ -1245,6 +1430,11 @@ class DataResetManager: ObservableObject {
             }.count
         case .openAIKey:
             return keychainService.hasValidAPIKey() ? 1 : 0
+        case .subscriptionData:
+            let manager = SubscriptionManager.shared
+            return (manager.currentTier != .free ? 1 : 0) + 
+                   (manager.dailyScansUsed > 0 ? 1 : 0) + 
+                   (!manager.userAPIKey.isEmpty ? 1 : 0)
         case .userPreferences, .firstLaunchFlag, .backupData, .analyticsCache, .openAIHistory:
             return 1 // These are single settings
         case .completeReset:
