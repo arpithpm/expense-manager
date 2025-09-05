@@ -475,8 +475,6 @@ class SubscriptionManager: ObservableObject {
         saveToUserDefaults()
     }
 }
-}
-
 
 class OpenAIService {
     static let shared = OpenAIService()
