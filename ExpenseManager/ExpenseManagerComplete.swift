@@ -484,8 +484,8 @@ class OpenAIService {
     
     func extractExpenseFromReceipt(_ image: UIImage) async throws -> OpenAIExpenseExtraction {
         // Check if user can scan today
-        let subscriptionManager = SubscriptionManager.shared
-        guard await subscriptionManager.canScanToday else {
+        let canScan = await MainActor.run { SubscriptionManager.shared.canScanToday }
+        guard canScan else {
             throw OpenAIError.dailyLimitReached
         }
         
@@ -511,8 +511,11 @@ class OpenAIService {
         
         // Determine which API key to use
         let apiKey: String
-        if await subscriptionManager.shouldUseUserAPIKey {
-            apiKey = await subscriptionManager.userAPIKey
+        let (shouldUseUserKey, userKey) = await MainActor.run { 
+            (SubscriptionManager.shared.shouldUseUserAPIKey, SubscriptionManager.shared.userAPIKey)
+        }
+        if shouldUseUserKey {
+            apiKey = userKey
         } else {
             guard let configAPIKey = KeychainService.shared.retrieve(for: .openaiKey) else {
                 throw OpenAIError.missingAPIKey
@@ -784,8 +787,8 @@ class ExpenseService: ObservableObject {
         for photoItem in photoItems {
             do {
                 // Check if user can scan before processing
-                guard await subscriptionManager.canScanToday else {
-                    errorMessage = await subscriptionManager.getUpgradeMessage()
+                guard subscriptionManager.canScanToday else {
+                    errorMessage = subscriptionManager.getUpgradeMessage()
                     break
                 }
                 
@@ -804,7 +807,7 @@ class ExpenseService: ObservableObject {
                     _ = addExpense(expense)
                     
                     // Consume a scan from the daily/subscription limit
-                    _ = await subscriptionManager.consumeScan()
+                    _ = subscriptionManager.consumeScan()
                     
                     processedCount += 1
                 }
@@ -824,7 +827,7 @@ class ExpenseService: ObservableObject {
                     case .responseTruncated:
                         errorMessage = "Receipt has too many items for processing. Try processing a simpler receipt."
                     case .dailyLimitReached:
-                        errorMessage = await subscriptionManager.getUpgradeMessage()
+                        errorMessage = subscriptionManager.getUpgradeMessage()
                     default:
                         errorMessage = "OpenAI processing failed: \(openAIError.localizedDescription)"
                     }
