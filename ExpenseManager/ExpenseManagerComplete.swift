@@ -338,9 +338,54 @@ enum SubscriptionTier: String, CaseIterable {
     
     var displayName: String {
         switch self {
-        case .free: return "Free (7/day)"
-        case .premium: return "Premium ($0.99/month)"
+        case .free: return "Free (10/day)"
+        case .premium: return "Premium ($1.99/month)"
         case .userAPIKey: return "Own API Key (Unlimited)"
+        }
+    }
+    
+    var subtitle: String {
+        switch self {
+        case .free: return "10 receipt scans daily • Resets every day"
+        case .premium: return "Unlimited scans • Priority processing"
+        case .userAPIKey: return "Use your own OpenAI API key"
+        }
+    }
+    
+    var monthlyPrice: String {
+        switch self {
+        case .free: return "Free"
+        case .premium: return "$1.99/month"
+        case .userAPIKey: return "Pay per usage"
+        }
+    }
+    
+    var features: [String] {
+        switch self {
+        case .free:
+            return [
+                "10 receipt scans per day",
+                "Resets daily at midnight",
+                "AI-powered item extraction",
+                "Multi-currency support",
+                "All core features included"
+            ]
+        case .premium:
+            return [
+                "Unlimited daily scans",
+                "Priority processing",
+                "Premium support",
+                "Advanced analytics",
+                "Export capabilities"
+            ]
+        case .userAPIKey:
+            return [
+                "Unlimited scans",
+                "Use your OpenAI credits",
+                "Full control over usage",
+                "Latest AI models",
+                "Advanced processing options"
+            ]
         }
     }
 }
@@ -355,7 +400,7 @@ class SubscriptionManager: ObservableObject {
     @Published var userAPIKey: String = ""
     @Published var isSubscribed: Bool = false
     
-    private let dailyFreeLimit = 7
+    private let dailyFreeLimit = 10
     private let userDefaults = UserDefaults.standard
     
     private init() {
@@ -458,7 +503,7 @@ class SubscriptionManager: ObservableObject {
     func getUpgradeMessage() -> String {
         switch currentTier {
         case .free:
-            return "You've used all 7 free scans today. Choose an option to continue:"
+            return "You've used all 10 free scans today. Your limit resets at midnight, or upgrade for unlimited scanning!"
         case .premium:
             return isSubscribed ? "" : "Premium subscription required for unlimited scans."
         case .userAPIKey:
