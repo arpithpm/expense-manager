@@ -299,16 +299,29 @@ struct ExpenseRowView: View {
                     
                     if expense.items != nil && !expense.items!.isEmpty {
                         Button(action: {
-                            showingItemDetails.toggle()
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                showingItemDetails.toggle()
+                            }
                         }) {
                             Image(systemName: showingItemDetails ? "chevron.up" : "chevron.down")
                                 .font(.caption)
                                 .foregroundColor(.blue)
+                                .frame(width: 24, height: 24) // Larger tap target
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            // Backup gesture handler
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                showingItemDetails.toggle()
+                            }
                         }
                     }
                 }
             }
             .padding()
+            .background(Color(.systemBackground))
+            .id(expense.id) // Add unique identifier to prevent state conflicts
             
             // Item details section
             if showingItemDetails, let items = expense.items, !items.isEmpty {
@@ -448,6 +461,10 @@ struct ExpenseRowView: View {
                 }
                 .padding(.bottom)
             }
+            .transition(.asymmetric(
+                insertion: .opacity.combined(with: .move(edge: .top)),
+                removal: .opacity.combined(with: .move(edge: .top))
+            ))
         }
         .background(Color(.systemBackground))
         .cornerRadius(12)
