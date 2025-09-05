@@ -31,7 +31,6 @@ struct OverviewView: View {
                 VStack(spacing: 24) {
                     summaryCards
                     addReceiptSection
-                    processedPhotosSection
                     recentExpensesSection
                 }
                 .padding(.horizontal, 20)
@@ -138,41 +137,6 @@ struct OverviewView: View {
                 Text("Selected \(selectedPhotos.count) photo\(selectedPhotos.count == 1 ? "" : "s")")
                     .font(.caption)
                     .foregroundColor(.secondary)
-            }
-        }
-    }
-    
-    private var processedPhotosSection: some View {
-        Group {
-            if !expenseService.processedPhotos.isEmpty {
-                VStack(spacing: 16) {
-                    HStack {
-                        Text("Processed Photos")
-                            .font(.headline)
-                        Spacer()
-                        Button("Clear All") {
-                            expenseService.clearProcessedPhotos()
-                        }
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    }
-                    
-                    LazyVStack(spacing: 12) {
-                        ForEach(expenseService.processedPhotos) { processedPhoto in
-                            ProcessedPhotoRowView(processedPhoto: processedPhoto)
-                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                    Button("Delete", role: .destructive) {
-                                        deleteExpense(processedPhoto.expense)
-                                    }
-                                }
-                                .contextMenu {
-                                    Button("Delete Expense", role: .destructive) {
-                                        deleteExpense(processedPhoto.expense)
-                                    }
-                                }
-                        }
-                    }
-                }
             }
         }
     }
@@ -503,50 +467,6 @@ struct ExpenseRowView: View {
         case "Business": return "briefcase"
         default: return "doc.text"
         }
-    }
-}
-
-struct ProcessedPhotoRowView: View {
-    let processedPhoto: ExpenseService.ProcessedPhoto
-    
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(processedPhoto.expense.merchant)
-                    .font(.headline)
-                    .lineLimit(1)
-                
-                Text("\(processedPhoto.expense.formattedAmount) • \(processedPhoto.expense.category)")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                
-                Text("Processed: \(processedPhoto.processingDate, style: .time)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            Spacer()
-            
-            VStack(alignment: .trailing, spacing: 4) {
-                Text("✓ Processed")
-                    .font(.caption)
-                    .foregroundColor(.green)
-                    .fontWeight(.medium)
-                
-                Text("Swipe to delete")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.trailing)
-            }
-        }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 1, x: 0, y: 1)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.green.opacity(0.3), lineWidth: 1)
-        )
     }
 }
 

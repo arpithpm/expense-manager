@@ -573,7 +573,6 @@ class ExpenseService: ObservableObject {
     @Published var expenses: [Expense] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
-    @Published var processedPhotos: [ProcessedPhoto] = []
     
     private let openAIService = OpenAIService.shared
     private let userDefaults = UserDefaults.standard
@@ -595,14 +594,6 @@ class ExpenseService: ObservableObject {
         }
     }
     
-    struct ProcessedPhoto: Identifiable {
-        let id = UUID()
-        let photoItem: PhotosPickerItem
-        let assetIdentifier: String?
-        let expense: Expense
-        let processingDate: Date
-    }
-    
     func processReceiptPhotos(_ photoItems: [PhotosPickerItem]) async -> Int {
         var processedCount = 0
         
@@ -621,15 +612,6 @@ class ExpenseService: ObservableObject {
                     
                     // Save expense locally
                     let createdExpense = addExpense(expense)
-                    
-                    // Track the processed photo with captured identifier
-                    let processedPhoto = ProcessedPhoto(
-                        photoItem: photoItem,
-                        assetIdentifier: assetIdentifier,
-                        expense: createdExpense,
-                        processingDate: Date()
-                    )
-                    processedPhotos.append(processedPhoto)
                     
                     processedCount += 1
                 }
@@ -804,11 +786,6 @@ class ExpenseService: ObservableObject {
         }.reduce(0) { $0 + $1.amount }
     }
     
-    
-    func clearProcessedPhotos() {
-        processedPhotos.removeAll()
-    }
-    
     // MARK: - Local Storage Methods
     
     private func loadExpensesFromUserDefaults() {
@@ -834,8 +811,6 @@ class ExpenseService: ObservableObject {
     
     func deleteExpense(_ expense: Expense) {
         expenses.removeAll { $0.id == expense.id }
-        // Also remove from processed photos if it exists
-        processedPhotos.removeAll { $0.expense.id == expense.id }
         saveExpensesToUserDefaults()
     }
     
