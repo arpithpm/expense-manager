@@ -203,7 +203,7 @@ getItemFrequency()                  // Purchase frequency analysis
 - **Smart Categorization**: Machine learning for improved categorization
 
 ### Version 3.0 (Future)
-- **Subscription Tracking**: Identify and track recurring expenses
+- **Recurring Expense Tracking**: Identify and track regular expenses
 - **Budget Management**: Set and track spending budgets by category
 - **Merchant Integration**: Direct integration with popular retailers
 - **Tax Optimization**: Advanced features for tax preparation
