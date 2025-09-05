@@ -173,17 +173,9 @@ struct OverviewView: View {
             } else {
                 LazyVStack(spacing: 12) {
                     ForEach(recentExpenses.prefix(5)) { expense in
-                        ExpenseRowView(expense: expense)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button("Delete", role: .destructive) {
-                                    deleteExpense(expense)
-                                }
-                            }
-                            .contextMenu {
-                                Button("Delete Expense", role: .destructive) {
-                                    deleteExpense(expense)
-                                }
-                            }
+                        ExpenseRowView(expense: expense) {
+                            deleteExpense(expense)
+                        }
                     }
                 }
             }
@@ -248,7 +240,9 @@ struct SummaryCard: View {
 
 struct ExpenseRowView: View {
     let expense: Expense
+    let onDelete: () -> Void
     @State private var showingItemDetails = false
+    @State private var isPressed = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -280,6 +274,10 @@ struct ExpenseRowView: View {
                             Text("• \(itemCount) item\(itemCount == 1 ? "" : "s")")
                                 .font(.caption)
                                 .foregroundColor(.blue)
+                            
+                            Text("• Tap to expand")
+                                .font(.caption2)
+                                .foregroundColor(.blue.opacity(0.7))
                         }
                     }
                 }
@@ -297,34 +295,59 @@ struct ExpenseRowView: View {
                             .foregroundColor(.secondary)
                     }
                     
+                    Text("Hold to delete")
+                        .font(.caption2)
+                        .foregroundColor(.secondary.opacity(0.6))
+                    
                     if expense.items != nil && !expense.items!.isEmpty {
-                        Button(action: {
-                            print("Button tapped for expense: \(expense.merchant), current state: \(showingItemDetails)")
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                showingItemDetails.toggle()
-                            }
-                            print("New state: \(showingItemDetails)")
-                        }) {
-                            Image(systemName: showingItemDetails ? "chevron.up" : "chevron.down")
-                                .font(.caption)
-                                .foregroundColor(.blue)
-                                .frame(width: 24, height: 24) // Larger tap target
-                        }
-                        .buttonStyle(PlainButtonStyle())
+                        Image(systemName: showingItemDetails ? "chevron.up" : "chevron.down")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                            .frame(width: 24, height: 24)
                     }
                 }
             }
             .padding()
             .background(Color(.systemBackground))
+            .scaleEffect(isPressed ? 0.98 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: isPressed)
+            .onTapGesture {
+                print("Row tapped for expense: \(expense.merchant), current state: \(showingItemDetails)")
+                print("Expense has items: \(expense.items?.count ?? 0)")
+                
+                // Always toggle for debugging - later we'll add back the condition
+                // Haptic feedback for tap
+                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                impactFeedback.impactOccurred()
+                
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showingItemDetails.toggle()
+                }
+                print("New state: \(showingItemDetails)")
+            }
+            .onLongPressGesture(minimumDuration: 0.5, maximumDistance: 50) {
+                print("Long press detected for expense: \(expense.merchant)")
+                
+                // Haptic feedback for long press
+                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                impactFeedback.impactOccurred()
+                
+                onDelete()
+            } onPressingChanged: { pressing in
+                withAnimation(.easeInOut(duration: 0.1)) {
+                    isPressed = pressing
+                }
+            }
             
-            // Item details section
-            if showingItemDetails, let items = expense.items, !items.isEmpty {
+            // Item details section - Debug version
+            if showingItemDetails {
                 VStack(spacing: 8) {
                     Divider()
                         .padding(.horizontal)
                     
-                    VStack(spacing: 6) {
-                        ForEach(items) { item in
+                    if let items = expense.items, !items.isEmpty {
+                        VStack(spacing: 6) {
+                            ForEach(items) { item in
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(item.name)
@@ -370,6 +393,12 @@ struct ExpenseRowView: View {
                             }
                             .padding(.horizontal)
                         }
+                    } else {
+                        // Debug: Show message when no items
+                        Text("No items found for this expense (Debug Mode)")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                            .padding()
                     }
                     
                     // Financial breakdown if available
@@ -525,19 +554,11 @@ struct AllExpensesView: View {
                     .listRowSeparator(.hidden)
                 } else {
                     ForEach(filteredExpenses) { expense in
-                        ExpenseRowView(expense: expense)
-                            .listRowSeparator(.hidden)
-                            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button("Delete", role: .destructive) {
-                                    deleteExpense(expense)
-                                }
-                            }
-                            .contextMenu {
-                                Button("Delete Expense", role: .destructive) {
-                                    deleteExpense(expense)
-                                }
-                            }
+                        ExpenseRowView(expense: expense) {
+                            deleteExpense(expense)
+                        }
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                     }
                 }
             }
