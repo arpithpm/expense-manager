@@ -613,29 +613,64 @@ struct ExpenseRowView: View {
     }
 }
 
+enum ExpenseSortOption: String, CaseIterable {
+    case dateNewest = "Date (Newest First)"
+    case dateOldest = "Date (Oldest First)"
+    case amountHighest = "Amount (Highest First)"
+    case amountLowest = "Amount (Lowest First)"
+    case merchantAZ = "Merchant (A-Z)"
+    case merchantZA = "Merchant (Z-A)"
+    
+    var systemImage: String {
+        switch self {
+        case .dateNewest: return "calendar.badge.minus"
+        case .dateOldest: return "calendar.badge.plus"
+        case .amountHighest: return "dollarsign.arrow.circlepath"
+        case .amountLowest: return "dollarsign.circle"
+        case .merchantAZ: return "textformat.abc"
+        case .merchantZA: return "textformat.abc.dottedunderline"
+        }
+    }
+}
+
 struct AllExpensesView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var expenseService = ExpenseService.shared
     @State private var expenseToDelete: Expense?
     @State private var showingDeleteConfirmation = false
     @State private var searchText = ""
+    @State private var sortOption: ExpenseSortOption = .dateNewest
+    @State private var showingSortOptions = false
     
     let isModal: Bool
     
     private var filteredExpenses: [Expense] {
-        if searchText.isEmpty {
-            return expenseService.expenses.sorted { $0.date > $1.date }
-        } else {
-            return expenseService.expenses.filter { expense in
-                expense.merchant.localizedCaseInsensitiveContains(searchText) ||
-                expense.category.localizedCaseInsensitiveContains(searchText) ||
-                (expense.description?.localizedCaseInsensitiveContains(searchText) ?? false) ||
-                (expense.items?.contains { item in
-                    item.name.localizedCaseInsensitiveContains(searchText) ||
-                    (item.category?.localizedCaseInsensitiveContains(searchText) ?? false) ||
-                    (item.description?.localizedCaseInsensitiveContains(searchText) ?? false)
-                } ?? false)
-            }.sorted { $0.date > $1.date }
+        let expenses = searchText.isEmpty ? expenseService.expenses : expenseService.expenses.filter { expense in
+            expense.merchant.localizedCaseInsensitiveContains(searchText) ||
+            expense.category.localizedCaseInsensitiveContains(searchText) ||
+            (expense.description?.localizedCaseInsensitiveContains(searchText) ?? false) ||
+            (expense.items?.contains { item in
+                item.name.localizedCaseInsensitiveContains(searchText) ||
+                (item.category?.localizedCaseInsensitiveContains(searchText) ?? false) ||
+                (item.description?.localizedCaseInsensitiveContains(searchText) ?? false)
+            } ?? false)
+        }
+        
+        return expenses.sorted { expense1, expense2 in
+            switch sortOption {
+            case .dateNewest:
+                return expense1.date > expense2.date
+            case .dateOldest:
+                return expense1.date < expense2.date
+            case .amountHighest:
+                return expense1.amount > expense2.amount
+            case .amountLowest:
+                return expense1.amount < expense2.amount
+            case .merchantAZ:
+                return expense1.merchant.localizedCaseInsensitiveCompare(expense2.merchant) == .orderedAscending
+            case .merchantZA:
+                return expense1.merchant.localizedCaseInsensitiveCompare(expense2.merchant) == .orderedDescending
+            }
         }
     }
     
@@ -674,6 +709,29 @@ struct AllExpensesView: View {
             .navigationBarTitleDisplayMode(.large)
             .searchable(text: $searchText, prompt: "Search expenses...")
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: {
+                        showingSortOptions = true
+                    }) {
+                        HStack(spacing: 4) {
+                            ZStack {
+                                Image(systemName: "arrow.up.arrow.down")
+                                
+                                // Show indicator dot when not using default sort
+                                if sortOption != .dateNewest {
+                                    Circle()
+                                        .fill(Color.red)
+                                        .frame(width: 8, height: 8)
+                                        .offset(x: 8, y: -8)
+                                }
+                            }
+                            Text("Sort")
+                        }
+                        .font(.subheadline)
+                        .foregroundColor(.accentColor)
+                    }
+                }
+                
                 if isModal {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button("Done") {
@@ -698,6 +756,9 @@ struct AllExpensesView: View {
                 Text("Are you sure you want to delete the expense from \(expense.merchant) for \(expense.formattedAmount)?")
             }
         }
+        .sheet(isPresented: $showingSortOptions) {
+            SortOptionsView(selectedSort: $sortOption)
+        }
     }
     
     
@@ -705,6 +766,104 @@ struct AllExpensesView: View {
     private func deleteExpense(_ expense: Expense) {
         expenseToDelete = expense
         showingDeleteConfirmation = true
+    }
+}
+
+struct SortOptionsView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var selectedSort: ExpenseSortOption
+    
+    var body: some View {
+        NavigationView {
+            List {
+                Section {
+                    ForEach(ExpenseSortOption.allCases, id: \.self) { option in
+                        HStack(spacing: 16) {
+                            // Icon with colored background
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(option == selectedSort ? Color.accentColor : Color.gray.opacity(0.2))
+                                    .frame(width: 32, height: 32)
+                                
+                                Image(systemName: option.systemImage)
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(option == selectedSort ? .white : .primary)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack {
+                                    Text(option.rawValue)
+                                        .font(.body)
+                                        .fontWeight(option == selectedSort ? .semibold : .regular)
+                                    
+                                    if option == .dateNewest {
+                                        Text("(Default)")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 4)
+                                                    .fill(Color.blue.opacity(0.1))
+                                            )
+                                    }
+                                    
+                                    Spacer()
+                                }
+                                
+                                Text(option.description)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            if option == selectedSort {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.accentColor)
+                                    .font(.title3)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            selectedSort = option
+                            dismiss()
+                        }
+                        .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
+                    }
+                } header: {
+                    Text("Sort Options")
+                } footer: {
+                    Text("Choose how to organize your expenses. The default sorting shows newest expenses first.")
+                }
+            }
+            .navigationTitle("Sort Expenses")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+extension ExpenseSortOption {
+    var description: String {
+        switch self {
+        case .dateNewest:
+            return "Most recent expenses appear first"
+        case .dateOldest:
+            return "Oldest expenses appear first"
+        case .amountHighest:
+            return "Largest amounts appear first"
+        case .amountLowest:
+            return "Smallest amounts appear first"
+        case .merchantAZ:
+            return "Merchants sorted alphabetically A-Z"
+        case .merchantZA:
+            return "Merchants sorted alphabetically Z-A"
+        }
     }
 }
 
