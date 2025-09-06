@@ -66,7 +66,7 @@ struct OverviewView: View {
             }
         }
         .sheet(isPresented: $showingAllExpenses) {
-            AllExpensesView()
+            AllExpensesView(isModal: true)
         }
         .onChange(of: selectedPhotos) { oldValue, newValue in
             if !newValue.isEmpty {
@@ -518,6 +518,8 @@ struct AllExpensesView: View {
     @State private var searchText = ""
     @State private var showSwipeHint = false
     
+    let isModal: Bool
+    
     private var filteredExpenses: [Expense] {
         if searchText.isEmpty {
             return expenseService.expenses.sorted { $0.createdAt > $1.createdAt }
@@ -570,9 +572,11 @@ struct AllExpensesView: View {
             .navigationBarTitleDisplayMode(.large)
             .searchable(text: $searchText, prompt: "Search expenses...")
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
+                if isModal {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Done") {
+                            dismiss()
+                        }
                     }
                 }
             }

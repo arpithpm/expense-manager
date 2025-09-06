@@ -12,7 +12,7 @@ struct ContentView: View {
                     Text("Overview")
                 }
             
-            AllExpensesView()
+            AllExpensesView(isModal: false)
                 .tabItem {
                     Image(systemName: "list.bullet")
                     Text("All Expenses")
