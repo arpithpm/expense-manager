@@ -11,7 +11,8 @@ struct OverviewView: View {
     @State private var alertMessage = ""
     @State private var expenseToDelete: Expense?
     @State private var showingDeleteConfirmation = false
-    @State private var showingAllExpenses = false
+    
+    @Binding var selectedTab: Int
     // Computed properties that automatically update when expenseService.expenses changes
     private var totalExpenses: Double {
         expenseService.getTotalInPrimaryCurrency()
@@ -64,9 +65,6 @@ struct OverviewView: View {
             if let expense = expenseToDelete {
                 Text("Are you sure you want to delete the expense from \(expense.merchant) for \(expense.formattedAmount)?")
             }
-        }
-        .sheet(isPresented: $showingAllExpenses) {
-            AllExpensesView(isModal: true)
         }
         .onChange(of: selectedPhotos) { oldValue, newValue in
             if !newValue.isEmpty {
@@ -151,7 +149,7 @@ struct OverviewView: View {
                 Spacer()
                 if !recentExpenses.isEmpty {
                     Button("View All") {
-                        showingAllExpenses = true
+                        selectedTab = 1
                     }
                     .font(.subheadline)
                     .foregroundColor(.accentColor)
@@ -685,6 +683,6 @@ struct AllExpensesView: View {
 }
 
 #Preview {
-    OverviewView()
+    OverviewView(selectedTab: .constant(0))
         .environmentObject(ConfigurationManager())
 }
