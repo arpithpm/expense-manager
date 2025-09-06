@@ -66,7 +66,7 @@ struct ConfigurationView: View {
                     Divider()
                         .padding(.vertical, 8)
                     
-                    Text("Model: GPT-4o Mini")
+                    Text("Model: GPT-4o")
                         .font(.headline)
                         .padding(.top, 4)
                     
