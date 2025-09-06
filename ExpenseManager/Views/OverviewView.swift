@@ -12,6 +12,11 @@ struct OverviewView: View {
     @State private var expenseToDelete: Expense?
     @State private var showingDeleteConfirmation = false
     
+    // Animation states
+    @State private var shimmerOffset: CGFloat = -1
+    @State private var iconRotation: Double = 0
+    @State private var cardScale: CGFloat = 1.0
+    
     @Binding var selectedTab: Int
     // Computed properties that automatically update when expenseService.expenses changes
     private var totalExpenses: Double {
@@ -22,13 +27,52 @@ struct OverviewView: View {
         expenseService.getMonthlyTotalInPrimaryCurrency()
     }
     
+    // Additional animation states for other elements
+    @State private var addButtonScale: CGFloat = 1.0
+    @State private var addButtonRotation: Double = 0
+    
     private var recentExpenses: [Expense] {
         Array(expenseService.expenses.sorted { $0.date > $1.date }.prefix(5))
     }
     
+    // Animation functions
+    private func startAnimations() {
+        // Initial shimmer animation - starts immediately
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            withAnimation(.linear(duration: 1.5)) {
+                shimmerOffset = 1.3
+            }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                shimmerOffset = -1
+            }
+        }
+        
+        // Shimmer animation - repeats every 4 seconds
+        Timer.scheduledTimer(withTimeInterval: 4.0, repeats: true) { _ in
+            withAnimation(.linear(duration: 1.5)) {
+                shimmerOffset = 1.3
+            }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                shimmerOffset = -1
+            }
+        }
+        
+        // Icon rotation animation - gentle continuous rotation
+        withAnimation(.linear(duration: 8.0).repeatForever(autoreverses: false)) {
+            iconRotation = 360
+        }
+        
+        // Subtle breathing animation for cards
+        withAnimation(.easeInOut(duration: 3.0).repeatForever(autoreverses: true)) {
+            cardScale = 1.01
+        }
+    }
+    
     private var customAppHeader: some View {
         HStack(spacing: 12) {
-            // Radar icon with gradient
+            // Animated radar icon with gradient
             ZStack {
                 Circle()
                     .fill(
@@ -39,20 +83,42 @@ struct OverviewView: View {
                         )
                     )
                     .frame(width: 50, height: 50)
+                    .scaleEffect(cardScale)
                 
                 Image(systemName: "wave.3.right.circle.fill")
                     .font(.system(size: 24))
                     .foregroundColor(.white)
+                    .rotationEffect(.degrees(iconRotation))
             }
             
-            // App name with styled text
+            // App name with shimmer animation
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
+                    // "Receipt" with shimmer effect
                     Text("Receipt")
                         .font(.title)
                         .fontWeight(.bold)
                         .foregroundColor(.primary)
+                        .overlay(
+                            // Shimmer overlay
+                            LinearGradient(
+                                gradient: Gradient(stops: [
+                                    .init(color: .clear, location: shimmerOffset - 0.3),
+                                    .init(color: .white.opacity(0.8), location: shimmerOffset),
+                                    .init(color: .clear, location: shimmerOffset + 0.3)
+                                ]),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                            .blendMode(.overlay)
+                        )
+                        .mask(
+                            Text("Receipt")
+                                .font(.title)
+                                .fontWeight(.bold)
+                        )
                     
+                    // "Radar" with shimmer effect
                     Text("Radar")
                         .font(.title)
                         .fontWeight(.bold)
@@ -62,6 +128,24 @@ struct OverviewView: View {
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
+                        )
+                        .overlay(
+                            // Shimmer overlay
+                            LinearGradient(
+                                gradient: Gradient(stops: [
+                                    .init(color: .clear, location: shimmerOffset - 0.3),
+                                    .init(color: .white.opacity(0.6), location: shimmerOffset),
+                                    .init(color: .clear, location: shimmerOffset + 0.3)
+                                ]),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                            .blendMode(.overlay)
+                        )
+                        .mask(
+                            Text("Radar")
+                                .font(.title)
+                                .fontWeight(.bold)
                         )
                     
                     Text("1")
@@ -74,6 +158,7 @@ struct OverviewView: View {
                             RoundedRectangle(cornerRadius: 8)
                                 .fill(.blue.opacity(0.1))
                         )
+                        .scaleEffect(cardScale)
                 }
                 
                 Text("Smart Expense Tracking")
@@ -84,6 +169,9 @@ struct OverviewView: View {
             Spacer()
         }
         .padding(.top, 8)
+        .onAppear {
+            startAnimations()
+        }
     }
     
     private var demoBanner: some View {
@@ -141,17 +229,33 @@ struct OverviewView: View {
             ScrollView {
                 VStack(spacing: 24) {
                     customAppHeader
+                        .transition(.opacity.combined(with: .slide))
+                    
                     demoBanner
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .top).combined(with: .opacity),
+                            removal: .opacity
+                        ))
+                    
                     summaryCards
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    
                     addReceiptSection
+                        .transition(.opacity.combined(with: .scale))
+                    
                     recentExpensesSection
+                        .transition(.opacity.combined(with: .move(edge: .trailing)))
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
+                .animation(.easeInOut(duration: 0.6), value: expenseService.expenses.count)
             }
             .navigationBarHidden(true)
             .refreshable {
                 // Data refreshes automatically through @Published properties
+                // Add haptic feedback for pull to refresh
+                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                impactFeedback.impactOccurred()
             }
         }
         .onAppear {
@@ -231,6 +335,8 @@ struct OverviewView: View {
                     } else {
                         Image(systemName: "camera.fill")
                             .font(.title2)
+                            .scaleEffect(addButtonScale)
+                            .rotationEffect(.degrees(addButtonRotation))
                         Text("Select Receipt Photos")
                             .font(.headline)
                     }
@@ -239,15 +345,43 @@ struct OverviewView: View {
                         .foregroundColor(.secondary)
                 }
                 .padding()
-                .background(Color.accentColor.opacity(0.1))
-                .cornerRadius(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.accentColor.opacity(0.1))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
+                        )
+                )
             }
             .disabled(isProcessingReceipts)
+            .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                    addButtonScale = pressing ? 0.95 : 1.0
+                }
+            }, perform: {})
+            .onTapGesture {
+                // Camera button animation on tap
+                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                impactFeedback.impactOccurred()
+                
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+                    addButtonRotation += 360
+                    addButtonScale = 1.1
+                }
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                        addButtonScale = 1.0
+                    }
+                }
+            }
             
             if !selectedPhotos.isEmpty {
                 Text("Selected \(selectedPhotos.count) photo\(selectedPhotos.count == 1 ? "" : "s")")
                     .font(.caption)
                     .foregroundColor(.secondary)
+                    .transition(.opacity.combined(with: .scale))
             }
         }
     }
@@ -258,12 +392,28 @@ struct OverviewView: View {
                 Text("Recent Expenses")
                     .font(.headline)
                 Spacer()
-                if !recentExpenses.isEmpty {
-                    Button("View All") {
-                        selectedTab = 1
+                HStack(spacing: 16) {
+                    if !recentExpenses.isEmpty {
+                        Button("View All") {
+                            selectedTab = 1
+                        }
+                        .font(.subheadline)
+                        .foregroundColor(.accentColor)
                     }
-                    .font(.subheadline)
-                    .foregroundColor(.accentColor)
+                    
+                    if recentExpenses.count >= 3 {
+                        Button(action: {
+                            selectedTab = 2
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "brain.head.profile")
+                                    .font(.caption)
+                                Text("AI Insights")
+                                    .font(.subheadline)
+                            }
+                            .foregroundColor(.purple)
+                        }
+                    }
                 }
             }
             
@@ -287,6 +437,10 @@ struct OverviewView: View {
                         ExpenseRowView(expense: expense) {
                             deleteExpense(expense)
                         }
+                        .transition(.asymmetric(
+                            insertion: .scale.combined(with: .opacity),
+                            removal: .move(edge: .trailing).combined(with: .opacity)
+                        ))
                     }
                 }
             }
@@ -326,11 +480,17 @@ struct SummaryCard: View {
     let color: Color
     let currency: String
     
+    @State private var isPressed = false
+    @State private var iconScale: CGFloat = 1.0
+    @State private var cardOffset: CGFloat = 0
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: icon)
                     .foregroundColor(color)
+                    .scaleEffect(iconScale)
+                    .animation(.spring(response: 0.4, dampingFraction: 0.6), value: iconScale)
                 Spacer()
             }
             
@@ -343,9 +503,56 @@ struct SummaryCard: View {
                 .fontWeight(.bold)
         }
         .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(isPressed ? 0.15 : 0.1), radius: isPressed ? 4 : 2, x: 0, y: isPressed ? 2 : 1)
+        )
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+        .offset(y: cardOffset)
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
+        .animation(.easeInOut(duration: 0.1), value: cardOffset)
+        .onTapGesture {
+            // Haptic feedback
+            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+            impactFeedback.impactOccurred()
+            
+            withAnimation(.spring(response: 0.2, dampingFraction: 0.4)) {
+                isPressed = true
+                iconScale = 1.2
+            }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                    isPressed = false
+                    iconScale = 1.0
+                }
+            }
+        }
+        .onAppear {
+            // Staggered appearance animation
+            let delay = title.contains("Month") ? 0.1 : 0.2
+            cardOffset = 30
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                    cardOffset = 0
+                }
+            }
+            
+            // Icon pulse animation
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay + 0.5) {
+                withAnimation(.easeInOut(duration: 0.6)) {
+                    iconScale = 1.1
+                }
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                    withAnimation(.easeInOut(duration: 0.6)) {
+                        iconScale = 1.0
+                    }
+                }
+            }
+        }
     }
 }
 

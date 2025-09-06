@@ -21,12 +21,19 @@ struct ContentView: View {
                 }
                 .tag(1)
             
+            SpendingInsightsView()
+                .tabItem {
+                    Image(systemName: "brain.head.profile")
+                    Text("AI Insights")
+                }
+                .tag(2)
+            
             SettingsView()
                 .tabItem {
                     Image(systemName: "gear")
                     Text("Settings")
                 }
-                .tag(2)
+                .tag(3)
         }
         .environmentObject(configurationManager)
     }

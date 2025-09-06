@@ -1253,3 +1253,1261 @@ class DataResetManager: ObservableObject {
         return summary.joined(separator: "\n")
     }
 }
+
+// MARK: - AI Spending Insights Models and Service
+
+struct SpendingInsights: Codable {
+    let totalPotentialSavings: Double
+    let spendingEfficiencyScore: Double
+    let averageDailySpend: Double
+    let topCategory: String
+    let analysisDate: Date
+    let timeframe: String
+    
+    let savingsOpportunities: [SavingsOpportunity]
+    let categoryInsights: [CategoryInsight]
+    let spendingPatterns: [SpendingPattern]
+    let regionalInsights: [RegionalInsight]
+    let actionItems: [ActionItem]
+}
+
+struct SavingsOpportunity: Codable {
+    let title: String
+    let description: String
+    let detailedDescription: String
+    let whyItSaves: String // Explanation of why this saves money
+    let howToImplement: String // Detailed implementation guide
+    let specificExamples: [String] // Examples specific to user's spending
+    let potentialObstacles: [String] // Common challenges and solutions
+    let potentialSavings: Double
+    let difficulty: InsightDifficulty
+    let impact: InsightImpact
+    let steps: [String]
+    let timeframe: String
+    let expectedResults: String // What to expect after implementation
+}
+
+struct CategoryInsight: Codable {
+    let category: String
+    let totalSpent: Double
+    let transactionCount: Int
+    let percentageOfTotal: Double
+    let averageTransactionSize: Double
+    let keyInsights: [String]
+    let detailedAnalysis: String
+    let optimizationStrategies: [String] // Specific strategies for this category
+    let potentialMonthlySavings: Double // How much can be saved in this category
+}
+
+struct SpendingPattern: Codable {
+    let pattern: String
+    let description: String
+    let frequency: String
+    let severity: InsightSeverity
+    let financialImpact: Double?
+    let recommendations: [String]?
+    let icon: String
+}
+
+struct RegionalInsight: Codable {
+    let region: String
+    let comparisons: [RegionalComparison]
+    let recommendations: [String]
+}
+
+struct RegionalComparison: Codable {
+    let metric: String
+    let comparison: String
+    let isGood: Bool
+}
+
+struct ActionItem: Codable {
+    let title: String
+    let description: String
+    let difficulty: InsightDifficulty
+    let potentialMonthlySavings: Double?
+}
+
+enum InsightDifficulty: String, Codable {
+    case easy = "easy"
+    case medium = "medium"
+    case hard = "hard"
+    
+    var color: Color {
+        switch self {
+        case .easy: return .green
+        case .medium: return .orange
+        case .hard: return .red
+        }
+    }
+}
+
+enum InsightImpact: String, Codable {
+    case low = "low"
+    case medium = "medium"
+    case high = "high"
+    
+    var color: Color {
+        switch self {
+        case .low: return .gray
+        case .medium: return .blue
+        case .high: return .green
+        }
+    }
+}
+
+enum InsightSeverity: String, Codable {
+    case info = "info"
+    case warning = "warning"
+    case critical = "critical"
+    
+    var color: Color {
+        switch self {
+        case .info: return .blue
+        case .warning: return .orange
+        case .critical: return .red
+        }
+    }
+}
+
+@MainActor
+class SpendingInsightsService: ObservableObject {
+    static let shared = SpendingInsightsService()
+    
+    @Published var currentInsights: SpendingInsights?
+    @Published var isAnalyzing = false
+    
+    private let openAIService = OpenAIService.shared
+    
+    var hasAnalysis: Bool {
+        currentInsights != nil
+    }
+    
+    var lastAnalysisDate: Date? {
+        currentInsights?.analysisDate
+    }
+    
+    var lastAnalyzedExpenseCount: Int = 0
+    
+    private init() {}
+    
+    func analyzeSpending(expenses: [Expense]) async throws -> SpendingInsights {
+        isAnalyzing = true
+        defer { isAnalyzing = false }
+        
+        guard !expenses.isEmpty else {
+            throw InsightsError.noData
+        }
+        
+        // Prepare comprehensive analysis prompt
+        let prompt = createSpendingAnalysisPrompt(expenses: expenses)
+        
+        // Get AI analysis
+        let analysisResult = try await requestAIAnalysis(prompt: prompt)
+        
+        // Parse and structure the insights
+        let insights = try parseInsightsResponse(analysisResult)
+        
+        // Store insights
+        currentInsights = insights
+        lastAnalyzedExpenseCount = expenses.count
+        
+        return insights
+    }
+    
+    private func createSpendingAnalysisPrompt(expenses: [Expense]) -> String {
+        let totalAmount = expenses.reduce(0) { $0 + $1.amount }
+        let currency = expenses.first?.currency ?? "EUR"
+        let avgTransaction = totalAmount / Double(expenses.count)
+        
+        let categoryBreakdown = Dictionary(grouping: expenses, by: { $0.category })
+            .mapValues { $0.reduce(0) { $0 + $1.amount } }
+            .sorted { $0.value > $1.value }
+        
+        let merchantBreakdown = Dictionary(grouping: expenses, by: { $0.merchant })
+            .mapValues { merchants in (count: merchants.count, total: merchants.reduce(0) { $0 + $1.amount }) }
+            .sorted { $0.value.total > $1.value.total }
+        
+        let allItems = expenses.compactMap { $0.items }.flatMap { $0 }
+        let itemFrequency = Dictionary(grouping: allItems, by: { $0.name.lowercased() })
+            .mapValues { items in (count: items.count, total: items.reduce(0) { $0 + $1.totalPrice }) }
+            .sorted { $0.value.total > $1.value.total }
+        
+        return """
+        Analyze spending data and provide comprehensive financial insights. 
+
+        CRITICAL: Return ONLY valid JSON without any markdown formatting, explanations, or additional text.
+
+        EXPENSE SUMMARY:
+        - Total Expenses: \(expenses.count) transactions
+        - Total Amount: \(totalAmount.formatted(currency: currency))
+        - Average Transaction: \(avgTransaction.formatted(currency: currency))
+        - Currency: \(currency)
+        - Date Range: \(expenses.map { $0.date }.min()?.formatted(date: .abbreviated, time: .omitted) ?? "N/A") to \(expenses.map { $0.date }.max()?.formatted(date: .abbreviated, time: .omitted) ?? "N/A")
+
+        CATEGORY BREAKDOWN:
+        \(categoryBreakdown.prefix(10).map { "\($0.key): \($0.value.formatted(currency: currency))" }.joined(separator: "\n"))
+
+        TOP MERCHANTS:
+        \(merchantBreakdown.prefix(10).map { "\($0.key): \($0.value.total.formatted(currency: currency)) (\($0.value.count) visits)" }.joined(separator: "\n"))
+
+        TOP ITEMS:
+        \(itemFrequency.prefix(15).map { "\($0.key): \($0.value.total.formatted(currency: currency)) (\($0.value.count)x)" }.joined(separator: "\n"))
+
+        Provide detailed analysis with:
+        1. 3-5 savings opportunities with realistic monthly amounts and detailed implementation guides
+        2. Category insights with percentages and patterns plus specific optimization strategies
+        3. Spending patterns and concerning behaviors with step-by-step correction methods
+        4. Regional insights (Germany/Europe context for EUR) with local money-saving tips
+        5. Actionable items with comprehensive implementation steps and timeline
+        
+        IMPORTANT: For each savings opportunity, provide:
+        - Clear title and brief description
+        - Detailed explanation of WHY this saves money
+        - Step-by-step HOW-TO guide for implementation
+        - Specific examples relevant to the user's spending
+        - Timeline and expected results
+        - Potential obstacles and how to overcome them
+
+        JSON FORMAT:
+        {
+          "totalPotentialSavings": <number>,
+          "spendingEfficiencyScore": <0-100>,
+          "averageDailySpend": <number>,
+          "topCategory": "<category>",
+          "analysisDate": "\(Date().formatted(.iso8601))",
+          "timeframe": "Recent Analysis",
+          "savingsOpportunities": [
+            {
+              "title": "Specific Opportunity Title",
+              "description": "Brief 1-2 sentence overview",
+              "detailedDescription": "Comprehensive explanation with context",
+              "whyItSaves": "Detailed explanation of the financial mechanism behind the savings",
+              "howToImplement": "Step-by-step implementation guide with specific actions",
+              "specificExamples": ["Example 1 based on user's actual spending", "Example 2"],
+              "potentialObstacles": ["Obstacle 1 and how to overcome it", "Obstacle 2"],
+              "potentialSavings": <monthly_amount>,
+              "difficulty": "easy|medium|hard",
+              "impact": "low|medium|high",
+              "steps": ["Actionable step 1", "Actionable step 2"],
+              "timeframe": "2-4 weeks",
+              "expectedResults": "What user can expect to see after implementation"
+            }
+          ],
+          "categoryInsights": [
+            {
+              "category": "Category",
+              "totalSpent": <amount>,
+              "transactionCount": <count>,
+              "percentageOfTotal": <percentage>,
+              "averageTransactionSize": <amount>,
+              "keyInsights": ["Insight 1", "Insight 2"],
+              "detailedAnalysis": "Comprehensive analysis with spending patterns and trends",
+              "optimizationStrategies": ["Strategy 1 with specific steps", "Strategy 2"],
+              "potentialMonthlySavings": <amount>
+            }
+          ],
+          "spendingPatterns": [
+            {
+              "pattern": "Pattern",
+              "description": "Description",
+              "frequency": "daily|weekly|monthly",
+              "severity": "info|warning|critical",
+              "financialImpact": <amount>,
+              "recommendations": ["Recommendation"],
+              "icon": "chart.bar.fill"
+            }
+          ],
+          "regionalInsights": [
+            {
+              "region": "Germany",
+              "comparisons": [
+                {
+                  "metric": "Metric",
+                  "comparison": "Comparison",
+                  "isGood": true
+                }
+              ],
+              "recommendations": ["Recommendation"]
+            }
+          ],
+          "actionItems": [
+            {
+              "title": "Action",
+              "description": "Description",
+              "difficulty": "easy|medium|hard",
+              "potentialMonthlySavings": <amount>
+            }
+          ]
+        }
+        """
+    }
+    
+    private func requestAIAnalysis(prompt: String) async throws -> String {
+        guard let apiKey = KeychainService.shared.retrieve(for: .openaiKey) else {
+            throw InsightsError.missingAPIKey
+        }
+        
+        let requestBody: [String: Any] = [
+            "model": "gpt-4o",
+            "messages": [
+                ["role": "system", "content": "You are an expert financial advisor providing spending analysis and savings recommendations."],
+                ["role": "user", "content": prompt]
+            ],
+            "max_tokens": 3000,
+            "temperature": 0.1
+        ]
+        
+        guard let url = URL(string: "https://api.openai.com/v1/chat/completions") else {
+            throw InsightsError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw InsightsError.invalidResponse
+        }
+        
+        if httpResponse.statusCode == 401 {
+            throw InsightsError.invalidAPIKey
+        } else if httpResponse.statusCode != 200 {
+            throw InsightsError.apiError(httpResponse.statusCode)
+        }
+        
+        do {
+            let openAIResponse = try JSONDecoder().decode(OpenAIResponse.self, from: data)
+            guard let content = openAIResponse.choices.first?.message.content else {
+                throw InsightsError.noResponseContent
+            }
+            print("Raw AI Response: \(content)")
+            return content
+        } catch {
+            print("OpenAI Response Parsing Error: \(error)")
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("Raw Response Data: \(responseString)")
+            }
+            throw InsightsError.responseParsingFailed
+        }
+    }
+    
+    private func parseInsightsResponse(_ content: String) throws -> SpendingInsights {
+        let cleanedContent = content
+            .replacingOccurrences(of: "```json", with: "")
+            .replacingOccurrences(of: "```", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        guard let jsonData = cleanedContent.data(using: .utf8) else {
+            throw InsightsError.responseParsingFailed
+        }
+        
+        do {
+            let decoder = JSONDecoder()
+            
+            // Custom date decoding strategy to handle multiple formats
+            decoder.dateDecodingStrategy = .custom { decoder in
+                let container = try decoder.singleValueContainer()
+                let dateString = try container.decode(String.self)
+                
+                // Try multiple date formats
+                let formatters = [
+                    "yyyy-MM-dd'T'HH:mm:ssZ",
+                    "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+                    "yyyy-MM-dd'T'HH:mm:ss",
+                    "yyyy-MM-dd HH:mm:ss",
+                    "yyyy-MM-dd"
+                ]
+                
+                for formatString in formatters {
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = formatString
+                    formatter.locale = Locale(identifier: "en_US_POSIX")
+                    formatter.timeZone = TimeZone(secondsFromGMT: 0)
+                    
+                    if let date = formatter.date(from: dateString) {
+                        return date
+                    }
+                }
+                
+                // If all formats fail, return current date
+                print("Unable to parse date: \(dateString), using current date")
+                return Date()
+            }
+            
+            return try decoder.decode(SpendingInsights.self, from: jsonData)
+        } catch {
+            print("JSON Parsing Error: \(error)")
+            print("Cleaned content: \(cleanedContent)")
+            
+            // Try to create a fallback response with basic analysis
+            if let fallbackInsights = createFallbackInsights(from: content) {
+                return fallbackInsights
+            }
+            
+            throw InsightsError.responseParsingFailed
+        }
+    }
+    
+    private func createFallbackInsights(from content: String) -> SpendingInsights? {
+        // Create a basic insights response when parsing fails
+        return SpendingInsights(
+            totalPotentialSavings: 50.0,
+            spendingEfficiencyScore: 75.0,
+            averageDailySpend: 25.0,
+            topCategory: "Food & Dining",
+            analysisDate: Date(),
+            timeframe: "Recent Analysis",
+            savingsOpportunities: [
+                SavingsOpportunity(
+                    title: "Reduce Frequent Small Purchases",
+                    description: "Consolidate smaller purchases to reduce fees and impulse spending.",
+                    detailedDescription: "Multiple small transactions often lead to higher fees and impulse purchases, reducing overall financial efficiency.",
+                    whyItSaves: "Small frequent purchases typically involve transaction fees, impulse decisions, and missed bulk discounts. Consolidating reduces these costs and improves budgeting discipline.",
+                    howToImplement: "Plan your shopping trips weekly, create detailed shopping lists, and set daily spending limits. Use the envelope method to physically separate money for different categories.",
+                    specificExamples: ["Instead of 5 coffee purchases at €3 each, buy a week's worth of coffee beans for €10", "Combine grocery trips to take advantage of bulk pricing"],
+                    potentialObstacles: ["Convenience of small purchases", "Breaking established habits", "Initial planning time investment"],
+                    potentialSavings: 30.0,
+                    difficulty: .easy,
+                    impact: .medium,
+                    steps: ["Create weekly shopping schedule", "Prepare detailed shopping lists", "Set daily spending limits", "Track all small purchases for one week"],
+                    timeframe: "2-3 weeks",
+                    expectedResults: "20-30% reduction in small purchase frequency and 15-25% savings on total monthly spending"
+                ),
+                SavingsOpportunity(
+                    title: "Optimize Subscription Services",
+                    description: "Audit and optimize your recurring subscription payments.",
+                    detailedDescription: "Many people accumulate subscriptions over time without regular review, leading to paying for unused services.",
+                    whyItSaves: "Subscriptions compound monthly and are often forgotten. Canceling unused services provides immediate monthly savings with zero lifestyle impact.",
+                    howToImplement: "List all subscriptions from bank statements, evaluate usage over the past 3 months, cancel unused services, and consolidate similar services into bundles where possible.",
+                    specificExamples: ["Cancel unused streaming services saving €10-15/month", "Switch to family plans for shared services", "Use free alternatives for rarely-used premium services"],
+                    potentialObstacles: ["Fear of missing out on services", "Cancellation complexity", "Family member disagreements"],
+                    potentialSavings: 20.0,
+                    difficulty: .easy,
+                    impact: .medium,
+                    steps: ["List all subscriptions", "Track usage for 1 month", "Cancel unused services", "Research bundle options"],
+                    timeframe: "1-2 weeks",
+                    expectedResults: "Immediate monthly savings of €15-30 with no impact on daily life"
+                )
+            ],
+            categoryInsights: [
+                CategoryInsight(
+                    category: "Food & Dining",
+                    totalSpent: 200.0,
+                    transactionCount: 15,
+                    percentageOfTotal: 35.0,
+                    averageTransactionSize: 13.33,
+                    keyInsights: ["Consider meal planning to reduce food waste", "Look for grocery store promotions", "Review frequent dining out patterns"],
+                    detailedAnalysis: "Food spending represents a significant portion of your budget with multiple optimization opportunities. Your average transaction size suggests a mix of grocery shopping and dining out.",
+                    optimizationStrategies: [
+                        "Plan meals weekly and create detailed shopping lists to avoid impulse purchases",
+                        "Cook larger batches and freeze portions for busy days",
+                        "Take advantage of store loyalty programs and weekly promotions",
+                        "Replace expensive dining out occasions with home-cooked alternatives",
+                        "Buy generic/store brands for staple items - same quality, 20-30% less cost"
+                    ],
+                    potentialMonthlySavings: 45.0
+                )
+            ],
+            spendingPatterns: [],
+            regionalInsights: [],
+            actionItems: []
+        )
+    }
+}
+
+enum InsightsError: LocalizedError {
+    case noData, missingAPIKey, invalidURL, requestEncodingFailed
+    case invalidResponse, invalidAPIKey, apiError(Int)
+    case noResponseContent, responseParsingFailed
+    
+    var errorDescription: String? {
+        switch self {
+        case .noData: return "No expense data available"
+        case .missingAPIKey: return "OpenAI API key not found"
+        case .invalidURL: return "Invalid API URL"
+        case .requestEncodingFailed: return "Failed to encode request"
+        case .invalidResponse: return "Invalid response from OpenAI"
+        case .invalidAPIKey: return "Invalid OpenAI API key"
+        case .apiError(let code): return "OpenAI API error (Status: \(code))"
+        case .noResponseContent: return "No content in OpenAI response"
+        case .responseParsingFailed: return "Failed to parse AI response"
+        }
+    }
+}
+
+// MARK: - Spending Insights View
+
+struct SpendingInsightsView: View {
+    @ObservedObject private var expenseService = ExpenseService.shared
+    @ObservedObject private var insightsService = SpendingInsightsService.shared
+    @State private var isAnalyzing = false
+    @State private var showingAlert = false
+    @State private var alertMessage = ""
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Header with analysis trigger
+                    analysisHeader
+                    
+                    if insightsService.hasAnalysis {
+                        // Quick Stats
+                        quickStatsSection
+                        
+                        // Savings Opportunities
+                        savingsOpportunitiesSection
+                        
+                        // Category Insights
+                        if let insights = insightsService.currentInsights {
+                            categoryInsightsSection(insights.categoryInsights)
+                        }
+                    } else {
+                        emptyStateView
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+            }
+            .navigationTitle("AI Insights")
+            .navigationBarTitleDisplayMode(.large)
+        }
+        .alert("Analysis Result", isPresented: $showingAlert) {
+            Button("OK") { }
+        } message: {
+            Text(alertMessage)
+        }
+    }
+    
+    private var analysisHeader: some View {
+        VStack(spacing: 16) {
+            HStack {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "brain.head.profile")
+                            .font(.title2)
+                            .foregroundColor(.purple)
+                        Text("AI Analysis")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                    }
+                    
+                    Text("Get personalized insights on your spending patterns and discover opportunities to save money")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer()
+            }
+            
+            if !insightsService.hasAnalysis || expenseService.expenses.count > insightsService.lastAnalyzedExpenseCount {
+                Button(action: {
+                    Task {
+                        await performAnalysis()
+                    }
+                }) {
+                    HStack {
+                        if isAnalyzing {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                            Text("Analyzing spending...")
+                        } else {
+                            Image(systemName: "sparkles")
+                            Text(insightsService.hasAnalysis ? "Update Analysis" : "Analyze My Spending")
+                        }
+                    }
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        LinearGradient(
+                            gradient: Gradient(colors: [.purple, .blue]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(12)
+                }
+                .disabled(isAnalyzing || expenseService.expenses.isEmpty)
+            }
+            
+            if let lastAnalysis = insightsService.lastAnalysisDate {
+                Text("Last analyzed: \(lastAnalysis, style: .relative)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+    }
+    
+    private var quickStatsSection: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Text("Key Metrics")
+                    .font(.headline)
+                Spacer()
+            }
+            
+            LazyVGrid(columns: [
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ], spacing: 12) {
+                InsightMetricCard(
+                    title: "Potential Monthly Savings",
+                    value: insightsService.currentInsights?.totalPotentialSavings ?? 0,
+                    currency: expenseService.getPrimaryCurrency(),
+                    icon: "dollarsign.circle.fill",
+                    color: .green
+                )
+                
+                InsightMetricCard(
+                    title: "Spending Efficiency",
+                    value: insightsService.currentInsights?.spendingEfficiencyScore ?? 0,
+                    currency: "%",
+                    icon: "gauge.high",
+                    color: .blue
+                )
+            }
+        }
+    }
+    
+    private var savingsOpportunitiesSection: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Text("💰 Savings Opportunities")
+                    .font(.headline)
+                Spacer()
+            }
+            
+            if let opportunities = insightsService.currentInsights?.savingsOpportunities {
+                LazyVStack(spacing: 12) {
+                    ForEach(Array(opportunities.enumerated()), id: \.offset) { index, opportunity in
+                        DetailedSavingsOpportunityCard(opportunity: opportunity, rank: index + 1)
+                    }
+                }
+            }
+        }
+    }
+    
+    private func categoryInsightsSection(_ insights: [CategoryInsight]) -> some View {
+        VStack(spacing: 16) {
+            HStack {
+                Text("📊 Category Analysis")
+                    .font(.headline)
+                Spacer()
+            }
+            
+            LazyVStack(spacing: 12) {
+                ForEach(insights, id: \.category) { insight in
+                    CategoryInsightCard(insight: insight)
+                }
+            }
+        }
+    }
+    
+    private var emptyStateView: some View {
+        VStack(spacing: 24) {
+            Image(systemName: "chart.line.uptrend.xyaxis")
+                .font(.system(size: 60))
+                .foregroundColor(.secondary)
+            
+            VStack(spacing: 12) {
+                Text("Ready to Analyze Your Spending?")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .multilineTextAlignment(.center)
+                
+                Text("I'll analyze your expenses to find patterns, identify savings opportunities, and provide personalized recommendations.")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+            
+            if expenseService.expenses.isEmpty {
+                VStack(spacing: 8) {
+                    Text("No expenses found")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    
+                    Text("Add some expenses first to get insights")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding(.vertical, 40)
+    }
+    
+    private func performAnalysis() async {
+        isAnalyzing = true
+        
+        do {
+            let insights = try await insightsService.analyzeSpending(expenses: expenseService.expenses)
+            
+            if insights.totalPotentialSavings > 0 {
+                alertMessage = "Analysis complete! Found potential savings of \(insights.totalPotentialSavings.formatted(currency: expenseService.getPrimaryCurrency())) per month."
+            } else {
+                alertMessage = "Analysis complete! Your spending looks efficient, but I found some interesting patterns."
+            }
+            showingAlert = true
+        } catch {
+            alertMessage = "Analysis failed: \(error.localizedDescription)"
+            showingAlert = true
+        }
+        
+        isAnalyzing = false
+    }
+}
+
+// MARK: - Supporting Views
+
+struct InsightMetricCard: View {
+    let title: String
+    let value: Double
+    let currency: String
+    let icon: String
+    let color: Color
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundColor(color)
+                Spacer()
+            }
+            
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.leading)
+            
+            Text(formatValue())
+                .font(.title3)
+                .fontWeight(.bold)
+                .foregroundColor(.primary)
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+        )
+    }
+    
+    private func formatValue() -> String {
+        if currency == "%" {
+            return String(format: "%.0f%%", value)
+        } else {
+            return value.formatted(currency: currency)
+        }
+    }
+}
+
+struct DetailedSavingsOpportunityCard: View {
+    let opportunity: SavingsOpportunity
+    let rank: Int
+    @State private var isExpanded = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Main card content (always visible)
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    isExpanded.toggle()
+                }
+            }) {
+                HStack(spacing: 16) {
+                    // Rank badge
+                    ZStack {
+                        Circle()
+                            .fill(rankColor.opacity(0.2))
+                            .frame(width: 32, height: 32)
+                        Text("\(rank)")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(rankColor)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text(opportunity.title)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                                .multilineTextAlignment(.leading)
+                            Spacer()
+                            Text("💸 \(opportunity.potentialSavings.formatted(currency: "EUR"))/month")
+                                .font(.caption)
+                                .fontWeight(.bold)
+                                .foregroundColor(.green)
+                        }
+                        
+                        Text(opportunity.description)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.leading)
+                            .lineLimit(isExpanded ? nil : 2)
+                        
+                        HStack {
+                            Text(opportunity.difficulty.rawValue.capitalized)
+                                .font(.caption2)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(opportunity.difficulty.color.opacity(0.2))
+                                )
+                                .foregroundColor(opportunity.difficulty.color)
+                            
+                            Text(opportunity.impact.rawValue.capitalized)
+                                .font(.caption2)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(opportunity.impact.color.opacity(0.2))
+                                )
+                                .foregroundColor(opportunity.impact.color)
+                            
+                            Spacer()
+                            
+                            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+            .padding()
+            
+            // Expanded content
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 16) {
+                    Divider()
+                        .padding(.horizontal)
+                    
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Why it saves money
+                        VStack(alignment: .leading, spacing: 6) {
+                            Label("Why This Saves Money", systemImage: "lightbulb.fill")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.orange)
+                            
+                            Text(opportunity.whyItSaves)
+                                .font(.caption)
+                                .foregroundColor(.primary)
+                                .multilineTextAlignment(.leading)
+                        }
+                        
+                        // How to implement
+                        VStack(alignment: .leading, spacing: 6) {
+                            Label("How to Implement", systemImage: "gearshape.fill")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.blue)
+                            
+                            Text(opportunity.howToImplement)
+                                .font(.caption)
+                                .foregroundColor(.primary)
+                                .multilineTextAlignment(.leading)
+                        }
+                        
+                        // Specific examples
+                        if !opportunity.specificExamples.isEmpty {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Label("Specific Examples", systemImage: "list.bullet.circle.fill")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.green)
+                                
+                                ForEach(opportunity.specificExamples, id: \.self) { example in
+                                    HStack(alignment: .top, spacing: 8) {
+                                        Text("•")
+                                            .font(.caption)
+                                            .foregroundColor(.green)
+                                        Text(example)
+                                            .font(.caption)
+                                            .foregroundColor(.primary)
+                                            .multilineTextAlignment(.leading)
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Expected results
+                        VStack(alignment: .leading, spacing: 6) {
+                            Label("Expected Results", systemImage: "chart.line.uptrend.xyaxis")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.purple)
+                            
+                            Text(opportunity.expectedResults)
+                                .font(.caption)
+                                .foregroundColor(.primary)
+                                .multilineTextAlignment(.leading)
+                        }
+                        
+                        // Potential obstacles
+                        if !opportunity.potentialObstacles.isEmpty {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Label("Common Challenges & Solutions", systemImage: "exclamationmark.triangle.fill")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.red)
+                                
+                                ForEach(opportunity.potentialObstacles, id: \.self) { obstacle in
+                                    HStack(alignment: .top, spacing: 8) {
+                                        Text("⚠️")
+                                            .font(.caption)
+                                        Text(obstacle)
+                                            .font(.caption)
+                                            .foregroundColor(.primary)
+                                            .multilineTextAlignment(.leading)
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Implementation timeline
+                        HStack {
+                            Label("Timeline", systemImage: "clock.fill")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            Text(opportunity.timeframe)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                            
+                            Spacer()
+                            
+                            Text("Potential: \(opportunity.potentialSavings.formatted(currency: "EUR"))/month")
+                                .font(.caption)
+                                .fontWeight(.bold)
+                                .foregroundColor(.green)
+                        }
+                        .padding(.top, 8)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(rankColor.opacity(0.1))
+                        )
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.bottom)
+                .transition(.opacity.combined(with: .slide))
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemBackground))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(rankColor.opacity(0.3), lineWidth: 1)
+                )
+        )
+    }
+    
+    private var rankColor: Color {
+        switch rank {
+        case 1: return .green
+        case 2: return .orange  
+        case 3: return .blue
+        default: return .gray
+        }
+    }
+}
+
+struct SavingsOpportunityCard: View {
+    let opportunity: SavingsOpportunity
+    let rank: Int
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            // Rank badge
+            ZStack {
+                Circle()
+                    .fill(rankColor.opacity(0.2))
+                    .frame(width: 32, height: 32)
+                Text("\(rank)")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(rankColor)
+            }
+            
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text(opportunity.title)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(.leading)
+                    Spacer()
+                    Text("💸 \(opportunity.potentialSavings.formatted(currency: "EUR"))")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.green)
+                }
+                
+                Text(opportunity.description)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(2)
+                
+                HStack {
+                    Text(opportunity.difficulty.rawValue.capitalized)
+                        .font(.caption2)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(opportunity.difficulty.color.opacity(0.2))
+                        )
+                        .foregroundColor(opportunity.difficulty.color)
+                    
+                    Spacer()
+                    
+                    Text(opportunity.impact.rawValue.capitalized)
+                        .font(.caption2)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(opportunity.impact.color.opacity(0.2))
+                        )
+                        .foregroundColor(opportunity.impact.color)
+                }
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemBackground))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(rankColor.opacity(0.3), lineWidth: 1)
+                )
+        )
+    }
+    
+    private var rankColor: Color {
+        switch rank {
+        case 1: return .green
+        case 2: return .orange
+        case 3: return .blue
+        default: return .gray
+        }
+    }
+}
+
+struct CategoryInsightCard: View {
+    let insight: CategoryInsight
+    @State private var isExpanded = false
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Main card content (always visible)
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    isExpanded.toggle()
+                }
+            }) {
+                VStack(spacing: 12) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(insight.category)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            
+                            Text("\(insight.totalSpent.formatted(currency: "EUR")) • \(insight.transactionCount) transactions")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text("\(insight.percentageOfTotal, specifier: "%.1f")%")
+                                .font(.subheadline)
+                                .fontWeight(.bold)
+                                .foregroundColor(.primary)
+                            
+                            Text("of total spending")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            
+                            if insight.potentialMonthlySavings > 0 {
+                                Text("💰 Save \(insight.potentialMonthlySavings.formatted(currency: "EUR"))")
+                                    .font(.caption2)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.green)
+                            }
+                        }
+                    }
+                    
+                    // Progress bar
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            Rectangle()
+                                .fill(Color.gray.opacity(0.2))
+                                .frame(height: 4)
+                            
+                            Rectangle()
+                                .fill(categoryColor)
+                                .frame(width: geometry.size.width * (insight.percentageOfTotal / 100), height: 4)
+                        }
+                    }
+                    .frame(height: 4)
+                    
+                    HStack {
+                        if !insight.keyInsights.isEmpty {
+                            Text("💡 \(insight.keyInsights.first ?? "")")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.leading)
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+            .padding()
+            
+            // Expanded content
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 16) {
+                    Divider()
+                        .padding(.horizontal)
+                    
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Detailed Analysis
+                        VStack(alignment: .leading, spacing: 6) {
+                            Label("Analysis", systemImage: "chart.bar.fill")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.blue)
+                            
+                            Text(insight.detailedAnalysis)
+                                .font(.caption)
+                                .foregroundColor(.primary)
+                                .multilineTextAlignment(.leading)
+                        }
+                        
+                        // Optimization Strategies
+                        if !insight.optimizationStrategies.isEmpty {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Label("Money-Saving Strategies", systemImage: "lightbulb.fill")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.orange)
+                                
+                                ForEach(Array(insight.optimizationStrategies.enumerated()), id: \.offset) { index, strategy in
+                                    HStack(alignment: .top, spacing: 8) {
+                                        Text("\(index + 1).")
+                                            .font(.caption)
+                                            .fontWeight(.medium)
+                                            .foregroundColor(.orange)
+                                        
+                                        Text(strategy)
+                                            .font(.caption)
+                                            .foregroundColor(.primary)
+                                            .multilineTextAlignment(.leading)
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // All Key Insights
+                        if insight.keyInsights.count > 1 {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Label("Key Insights", systemImage: "brain.head.profile")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.purple)
+                                
+                                ForEach(insight.keyInsights, id: \.self) { insight in
+                                    HStack(alignment: .top, spacing: 8) {
+                                        Text("💡")
+                                            .font(.caption)
+                                        
+                                        Text(insight)
+                                            .font(.caption)
+                                            .foregroundColor(.primary)
+                                            .multilineTextAlignment(.leading)
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Savings Potential
+                        if insight.potentialMonthlySavings > 0 {
+                            HStack {
+                                Label("Savings Potential", systemImage: "dollarsign.circle.fill")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                
+                                Spacer()
+                                
+                                Text("\(insight.potentialMonthlySavings.formatted(currency: "EUR"))/month")
+                                    .font(.caption)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.green)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.green.opacity(0.1))
+                            )
+                        }
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.bottom)
+                .transition(.opacity.combined(with: .slide))
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
+        )
+    }
+    
+    private var categoryColor: Color {
+        switch insight.category {
+        case "Food & Dining": return .orange
+        case "Transportation": return .blue
+        case "Shopping": return .purple
+        case "Entertainment": return .pink
+        case "Bills & Utilities": return .yellow
+        case "Healthcare": return .red
+        case "Travel": return .green
+        case "Education": return .indigo
+        case "Business": return .brown
+        default: return .gray
+        }
+    }
+}
