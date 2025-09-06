@@ -716,7 +716,7 @@ class ExpenseService: ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        let recentExpenses = Array(expenses.sorted { $0.createdAt > $1.createdAt }.prefix(limit))
+        let recentExpenses = Array(expenses.sorted { $0.date > $1.date }.prefix(limit))
         isLoading = false
         return recentExpenses
     }
@@ -879,6 +879,24 @@ class ExpenseService: ObservableObject {
     
     private func markFirstLaunchComplete() {
         userDefaults.set(true, forKey: firstLaunchKey)
+    }
+    
+    // MARK: - Demo Data Detection
+    
+    func hasDemoData() -> Bool {
+        // Check if any expenses match known sample merchants
+        let sampleMerchants = ["Starbucks Coffee", "Shell Gas Station", "Tesco Extra", "Target", "Chipotle Mexican Grill", "Amazon.com"]
+        return expenses.contains { expense in
+            sampleMerchants.contains(expense.merchant)
+        }
+    }
+    
+    func clearDemoData() {
+        let sampleMerchants = ["Starbucks Coffee", "Shell Gas Station", "Tesco Extra", "Target", "Chipotle Mexican Grill", "Amazon.com"]
+        expenses.removeAll { expense in
+            sampleMerchants.contains(expense.merchant)
+        }
+        saveExpensesToUserDefaults()
     }
     
     // MARK: - Sample Data for First Launch

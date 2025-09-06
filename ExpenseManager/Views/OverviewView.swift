@@ -23,7 +23,7 @@ struct OverviewView: View {
     }
     
     private var recentExpenses: [Expense] {
-        Array(expenseService.expenses.sorted { $0.createdAt > $1.createdAt }.prefix(5))
+        Array(expenseService.expenses.sorted { $0.date > $1.date }.prefix(5))
     }
     
     private var customAppHeader: some View {
@@ -86,11 +86,62 @@ struct OverviewView: View {
         .padding(.top, 8)
     }
     
+    private var demoBanner: some View {
+        VStack(spacing: 0) {
+            if expenseService.hasDemoData() {
+                HStack(spacing: 12) {
+                    Image(systemName: "info.circle.fill")
+                        .foregroundColor(.blue)
+                        .font(.title3)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("Demo Mode")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.primary)
+                            
+                            Spacer()
+                            
+                            Button("Clear Demo Data") {
+                                withAnimation(.spring(duration: 0.5)) {
+                                    expenseService.clearDemoData()
+                                }
+                            }
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.blue)
+                        }
+                        
+                        Text("You're viewing sample expenses to explore the app. Clear this data to start tracking your own expenses.")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.leading)
+                    }
+                }
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.blue.opacity(0.1))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                        )
+                )
+                .transition(.asymmetric(
+                    insertion: .move(edge: .top).combined(with: .opacity),
+                    removal: .opacity
+                ))
+            }
+        }
+    }
+    
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 24) {
                     customAppHeader
+                    demoBanner
                     summaryCards
                     addReceiptSection
                     recentExpensesSection
@@ -568,13 +619,12 @@ struct AllExpensesView: View {
     @State private var expenseToDelete: Expense?
     @State private var showingDeleteConfirmation = false
     @State private var searchText = ""
-    @State private var showSwipeHint = false
     
     let isModal: Bool
     
     private var filteredExpenses: [Expense] {
         if searchText.isEmpty {
-            return expenseService.expenses.sorted { $0.createdAt > $1.createdAt }
+            return expenseService.expenses.sorted { $0.date > $1.date }
         } else {
             return expenseService.expenses.filter { expense in
                 expense.merchant.localizedCaseInsensitiveContains(searchText) ||
@@ -585,7 +635,7 @@ struct AllExpensesView: View {
                     (item.category?.localizedCaseInsensitiveContains(searchText) ?? false) ||
                     (item.description?.localizedCaseInsensitiveContains(searchText) ?? false)
                 } ?? false)
-            }.sorted { $0.createdAt > $1.createdAt }
+            }.sorted { $0.date > $1.date }
         }
     }
     
@@ -632,13 +682,6 @@ struct AllExpensesView: View {
                     }
                 }
             }
-            .overlay(
-                // Swipe hint overlay
-                swipeHintOverlay
-            )
-            .onAppear {
-                checkAndShowSwipeHint()
-            }
         }
         .alert("Delete Expense", isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) {
@@ -657,80 +700,9 @@ struct AllExpensesView: View {
         }
     }
     
-    @ViewBuilder
-    private var swipeHintOverlay: some View {
-        if showSwipeHint && !filteredExpenses.isEmpty {
-            VStack {
-                Spacer()
-                    .frame(height: 120) // Account for navigation bar
-                
-                HStack {
-                    HStack(spacing: 8) {
-                        Image(systemName: "hand.point.right.fill")
-                            .foregroundColor(.white)
-                            .font(.caption)
-                        Text("💡 Swipe left on any expense to delete it")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.white)
-                        Image(systemName: "trash")
-                            .foregroundColor(.white)
-                            .font(.caption)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 25)
-                            .fill(Color.accentColor.opacity(0.9))
-                            .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2)
-                    )
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .top).combined(with: .opacity),
-                        removal: .opacity
-                    ))
-                    
-                    Spacer()
-                }
-                .padding(.horizontal, 20)
-                
-                Spacer()
-            }
-            .allowsHitTesting(false) // Allow taps to pass through
-        }
-    }
     
-    private func checkAndShowSwipeHint() {
-        let hasShownHint = UserDefaults.standard.bool(forKey: "hasShownSwipeToDeleteHint")
-        
-        if !hasShownHint && !filteredExpenses.isEmpty {
-            // Show hint after a brief delay to let the view settle
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    showSwipeHint = true
-                }
-                
-                // Auto-hide after 4 seconds
-                DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
-                    hideSwipeHint()
-                }
-            }
-        }
-    }
-    
-    private func hideSwipeHint() {
-        if showSwipeHint {
-            withAnimation(.easeInOut(duration: 0.3)) {
-                showSwipeHint = false
-            }
-            
-            // Mark as shown so it doesn't appear again
-            UserDefaults.standard.set(true, forKey: "hasShownSwipeToDeleteHint")
-        }
-    }
     
     private func deleteExpense(_ expense: Expense) {
-        // Hide hint when user performs an action
-        hideSwipeHint()
         expenseToDelete = expense
         showingDeleteConfirmation = true
     }
