@@ -62,6 +62,17 @@ struct ConfigurationView: View {
                     Text("Required for AI-powered receipt processing. Data is stored locally on your device.")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                    
+                    Divider()
+                        .padding(.vertical, 8)
+                    
+                    Text("Model: GPT-4o Mini")
+                        .font(.headline)
+                        .padding(.top, 4)
+                    
+                    Text("Cost-effective receipt processing with excellent accuracy")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
                 .padding(.vertical, 8)
             }
