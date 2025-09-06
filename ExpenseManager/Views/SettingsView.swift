@@ -420,9 +420,9 @@ struct SettingsView: View {
             HStack {
                 Image(systemName: "brain")
                     .foregroundColor(.accentColor)
-                Text("AI Service")
+                Text("AI Model")
                 Spacer()
-                Text("OpenAI Vision")
+                Text("GPT-4o")
                     .foregroundColor(.secondary)
             }
         }

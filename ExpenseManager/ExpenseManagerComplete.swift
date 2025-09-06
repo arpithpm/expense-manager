@@ -344,7 +344,7 @@ class OpenAIService {
         let prompt = createExpenseExtractionPrompt()
         
         let requestBody: [String: Any] = [
-            "model": "gpt-4o-mini",
+            "model": "gpt-4o",
             "messages": [[
                 "role": "user",
                 "content": [
