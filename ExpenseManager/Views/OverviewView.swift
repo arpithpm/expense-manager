@@ -292,9 +292,6 @@ struct ExpenseRowView: View {
                             .foregroundColor(.secondary)
                     }
                     
-                    Text("Hold to delete")
-                        .font(.caption2)
-                        .foregroundColor(.secondary.opacity(0.6))
                     
                     if expense.items != nil && !expense.items!.isEmpty {
                         Image(systemName: showingItemDetails ? "chevron.up" : "chevron.down")
