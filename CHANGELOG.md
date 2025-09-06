@@ -4,6 +4,43 @@ All notable changes to ReceiptRadar will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2025-09-06
+
+### ✨ Enhanced User Experience
+
+#### Smart Demo Mode Management
+- **Demo Mode Banner**: Clean indicator when viewing sample data with one-tap clearing
+- **Complete Demo Data Removal**: Fixed issue where one demo expense remained after clearing
+- **Consistent Demo Detection**: All demo data management now uses unified logic
+
+#### Advanced Sorting & Organization  
+- **Flexible Sorting Options**: Sort expenses by date, amount, or merchant (ascending/descending)
+- **Elegant Sort UI**: Beautiful sheet interface with icons and descriptions
+- **Non-Default Sort Indicator**: Visual dot on sort button when using custom sorting
+- **Smart Default Handling**: Clear indication of default sort option
+
+#### Improved Navigation & UI Polish
+- **Tab-Based Navigation**: "View All" now navigates to tab instead of modal for better UX  
+- **Conditional Done Button**: Only appears in modal contexts, not in tab navigation
+- **Clean Interface**: Removed redundant instructional text ("Tap to expand", "Hold to delete")
+- **Custom App Header**: Beautiful gradient header replacing plain navigation title
+
+#### AI Model Upgrade & Consistency
+- **GPT-4o Integration**: Upgraded from GPT-4o Mini for better accuracy
+- **Consistent Model Display**: All screens show correct model information
+- **Proper Date-Based Sorting**: Expenses now sorted by actual date, not creation time
+
+#### Enhanced Data Management
+- **Streamlined Reset Options**: Removed unnecessary reset categories, keeping only valuable ones
+- **Improved Sample Expense Detection**: More reliable demo data management
+- **Better Version Display**: Updated to show correct version 2.1.0
+
+### 🐛 Bug Fixes
+- Fixed demo data clearing leaving one expense behind
+- Corrected expense sorting to use actual dates instead of creation timestamps
+- Removed misleading swipe-to-delete hints from AllExpensesView
+- Fixed model name consistency across configuration and settings screens
+
 ## [2.0.0] - 2025-09-05
 
 ### 🚀 Major Features Added
