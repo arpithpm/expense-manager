@@ -275,9 +275,6 @@ struct ExpenseRowView: View {
                                 .font(.caption)
                                 .foregroundColor(.blue)
                             
-                            Text("• Tap to expand")
-                                .font(.caption2)
-                                .foregroundColor(.blue.opacity(0.7))
                         }
                     }
                 }
