@@ -404,7 +404,7 @@ struct SettingsView: View {
                     .foregroundColor(.accentColor)
                 Text("Version")
                 Spacer()
-                Text("2.0.0")
+                Text("2.1.0")
                     .foregroundColor(.secondary)
             }
             
