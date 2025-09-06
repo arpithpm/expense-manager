@@ -883,18 +883,18 @@ class ExpenseService: ObservableObject {
     
     // MARK: - Demo Data Detection
     
+    static let sampleMerchants = ["Starbucks Coffee", "Shell Gas Station", "Tesco Extra", "Target", "Chipotle Mexican Grill", "Amazon.com"]
+    
     func hasDemoData() -> Bool {
         // Check if any expenses match known sample merchants
-        let sampleMerchants = ["Starbucks Coffee", "Shell Gas Station", "Tesco Extra", "Target", "Chipotle Mexican Grill", "Amazon.com"]
         return expenses.contains { expense in
-            sampleMerchants.contains(expense.merchant)
+            ExpenseService.sampleMerchants.contains(expense.merchant)
         }
     }
     
     func clearDemoData() {
-        let sampleMerchants = ["Starbucks Coffee", "Shell Gas Station", "Tesco Extra", "Target", "Chipotle Mexican Grill", "Amazon.com"]
         expenses.removeAll { expense in
-            sampleMerchants.contains(expense.merchant)
+            ExpenseService.sampleMerchants.contains(expense.merchant)
         }
         saveExpensesToUserDefaults()
     }
@@ -1118,12 +1118,7 @@ class DataResetManager: ObservableObject {
     enum ResetCategory: String, CaseIterable {
         case allExpenses = "All Expenses"
         case sampleExpenses = "Sample Expenses Only"
-        case analyticsCache = "Analytics Cache"
         case openAIKey = "OpenAI API Key"
-        case openAIHistory = "OpenAI Usage History"
-        case userPreferences = "User Preferences"
-        case firstLaunchFlag = "First Launch Flag"
-        case backupData = "Backup Timestamps"
         case completeReset = "Complete Reset (Everything)"
         
         var description: String {
@@ -1132,18 +1127,8 @@ class DataResetManager: ObservableObject {
                 return "Remove all stored expenses from the app"
             case .sampleExpenses:
                 return "Remove only the sample/demo expenses"
-            case .analyticsCache:
-                return "Clear cached analytics and calculations"
             case .openAIKey:
                 return "Remove stored OpenAI API key from Keychain"
-            case .openAIHistory:
-                return "Clear OpenAI usage history and cache"
-            case .userPreferences:
-                return "Reset app settings to defaults"
-            case .firstLaunchFlag:
-                return "Reset first launch flag (will show sample data again)"
-            case .backupData:
-                return "Clear backup timestamps and sync data"
             case .completeReset:
                 return "Reset everything - returns app to fresh install state"
             }
@@ -1153,28 +1138,18 @@ class DataResetManager: ObservableObject {
             switch self {
             case .allExpenses, .sampleExpenses:
                 return "trash"
-            case .analyticsCache:
-                return "chart.bar"
             case .openAIKey:
                 return "key"
-            case .openAIHistory:
-                return "clock.arrow.circlepath"
-            case .userPreferences:
-                return "gearshape"
-            case .firstLaunchFlag:
-                return "flag"
-            case .backupData:
-                return "icloud"
             case .completeReset:
-                return "trash.circle"
+                return "exclamationmark.triangle"
             }
         }
         
         var isDestructive: Bool {
             switch self {
-            case .allExpenses, .openAIKey, .completeReset:
+            case .allExpenses, .completeReset:
                 return true
-            default:
+            case .sampleExpenses, .openAIKey:
                 return false
             }
         }
@@ -1201,40 +1176,13 @@ class DataResetManager: ObservableObject {
             expenseService.saveExpensesToUserDefaults()
             
         case .sampleExpenses:
-            let sampleMerchants = ["Sample Grocery Store", "Demo Restaurant", "Test Gas Station", 
-                                 "Example Coffee Shop", "Sample Pharmacy"]
             expenseService.expenses.removeAll { expense in
-                sampleMerchants.contains(expense.merchant)
+                ExpenseService.sampleMerchants.contains(expense.merchant)
             }
             expenseService.saveExpensesToUserDefaults()
             
-        case .analyticsCache:
-            // Clear any cached analytics (if we had any)
-            // For now, this is mostly a placeholder as analytics are calculated on-demand
-            break
-            
         case .openAIKey:
             try keychainService.deleteAPIKey()
-            
-        case .openAIHistory:
-            // Clear any OpenAI usage history (placeholder for future implementation)
-            userDefaults.removeObject(forKey: "OpenAIUsageHistory")
-            userDefaults.removeObject(forKey: "OpenAILastUsed")
-            
-        case .userPreferences:
-            // Remove app-specific settings while preserving system settings
-            let keysToRemove = ["LastBackupDate", "UserSelectedCurrency", 
-                              "NotificationsEnabled", "AppTheme"]
-            for key in keysToRemove {
-                userDefaults.removeObject(forKey: key)
-            }
-            
-        case .firstLaunchFlag:
-            userDefaults.removeObject(forKey: "HasLaunchedBefore")
-            
-        case .backupData:
-            userDefaults.removeObject(forKey: "LastBackupDate")
-            userDefaults.removeObject(forKey: "BackupStatus")
             
         case .completeReset:
             // Reset everything
@@ -1259,15 +1207,11 @@ class DataResetManager: ObservableObject {
         case .allExpenses:
             return expenseService.expenses.count
         case .sampleExpenses:
-            let sampleMerchants = ["Sample Grocery Store", "Demo Restaurant", "Test Gas Station", 
-                                 "Example Coffee Shop", "Sample Pharmacy"]
             return expenseService.expenses.filter { expense in
-                sampleMerchants.contains(expense.merchant)
+                ExpenseService.sampleMerchants.contains(expense.merchant)
             }.count
         case .openAIKey:
             return keychainService.hasValidAPIKey() ? 1 : 0
-        case .userPreferences, .firstLaunchFlag, .backupData, .analyticsCache, .openAIHistory:
-            return 1 // These are single settings
         case .completeReset:
             return expenseService.expenses.count + (keychainService.hasValidAPIKey() ? 1 : 0)
         }

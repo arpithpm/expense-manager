@@ -731,19 +731,13 @@ struct DataResetView: View {
             // Expense Data Group
             categoryGroup(
                 title: "💰 Expense Data",
-                categories: [.allExpenses, .sampleExpenses, .analyticsCache]
+                categories: [.allExpenses, .sampleExpenses]
             )
             
             // OpenAI Configuration Group
             categoryGroup(
                 title: "🤖 OpenAI Configuration", 
-                categories: [.openAIKey, .openAIHistory]
-            )
-            
-            // App Settings Group
-            categoryGroup(
-                title: "⚙️ App Settings",
-                categories: [.userPreferences, .firstLaunchFlag, .backupData]
+                categories: [.openAIKey]
             )
             
             // Complete Reset Group
