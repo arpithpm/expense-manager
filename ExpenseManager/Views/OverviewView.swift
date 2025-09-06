@@ -26,10 +26,71 @@ struct OverviewView: View {
         Array(expenseService.expenses.sorted { $0.createdAt > $1.createdAt }.prefix(5))
     }
     
+    private var customAppHeader: some View {
+        HStack(spacing: 12) {
+            // Radar icon with gradient
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [.blue, .purple]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 50, height: 50)
+                
+                Image(systemName: "wave.3.right.circle.fill")
+                    .font(.system(size: 24))
+                    .foregroundColor(.white)
+            }
+            
+            // App name with styled text
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text("Receipt")
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primary)
+                    
+                    Text("Radar")
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .foregroundStyle(
+                            LinearGradient(
+                                gradient: Gradient(colors: [.blue, .purple]),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                    
+                    Text("1")
+                        .font(.title2)
+                        .fontWeight(.medium)
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(.blue.opacity(0.1))
+                        )
+                }
+                
+                Text("Smart Expense Tracking")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+        }
+        .padding(.top, 8)
+    }
+    
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 24) {
+                    customAppHeader
                     summaryCards
                     addReceiptSection
                     recentExpensesSection
@@ -37,8 +98,7 @@ struct OverviewView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
             }
-            .navigationTitle("ReceiptRadar")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarHidden(true)
             .refreshable {
                 // Data refreshes automatically through @Published properties
             }
