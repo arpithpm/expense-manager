@@ -435,6 +435,9 @@ class OpenAIService {
         - Item categories: Food, Beverage, Product, Service, Electronics, Household, etc.
         - If unclear, set items to null
         - Ensure financial breakdown adds up
+        - CRITICAL: For German date format DD.MM.YY, interpret YY as 20YY (e.g., "25" means "2025", not "1925" or "2023")
+        - Always prioritize full ISO timestamps when available (e.g., "2025-09-06T19:22:16.000Z")
+        - If both short format (06.09.25) and full timestamp are present, use the full timestamp
 
         JSON FORMAT:
         {
@@ -680,7 +683,24 @@ class ExpenseService: ObservableObject {
     private func createExpenseFromExtraction(_ extraction: OpenAIExpenseExtraction) throws -> Expense {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
-        let expenseDate = dateFormatter.date(from: extraction.date) ?? Date()
+        var expenseDate = dateFormatter.date(from: extraction.date) ?? Date()
+        
+        // Validate and fix date if it's incorrectly parsed as 2023 instead of 2025
+        let calendar = Calendar.current
+        let currentYear = calendar.component(.year, from: Date())
+        let extractedYear = calendar.component(.year, from: expenseDate)
+        
+        // If the extracted date is 2023 but we're in 2025, likely a parsing error
+        if extractedYear == 2023 && currentYear >= 2025 {
+            print("Warning: Date parsed as 2023, correcting to 2025. Original: \(extraction.date)")
+            let components = calendar.dateComponents([.month, .day], from: expenseDate)
+            var correctedComponents = DateComponents()
+            correctedComponents.year = 2025
+            correctedComponents.month = components.month
+            correctedComponents.day = components.day
+            expenseDate = calendar.date(from: correctedComponents) ?? expenseDate
+            print("Corrected date: \(expenseDate)")
+        }
         
         // Convert OpenAI items to ExpenseItems
         let expenseItems: [ExpenseItem]? = extraction.items?.map { openAIItem in
