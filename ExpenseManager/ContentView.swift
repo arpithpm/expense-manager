@@ -13,6 +13,8 @@ struct ContentView: View {
                     Text("Overview")
                 }
                 .tag(0)
+                .accessibilityLabel("Overview Tab")
+                .accessibilityHint("Shows your expense overview and recent transactions")
             
             AllExpensesView(isModal: false)
                 .tabItem {
@@ -20,6 +22,8 @@ struct ContentView: View {
                     Text("All Expenses")
                 }
                 .tag(1)
+                .accessibilityLabel("All Expenses Tab")
+                .accessibilityHint("Shows complete list of all your expenses")
             
             SpendingInsightsView()
                 .tabItem {
@@ -27,6 +31,8 @@ struct ContentView: View {
                     Text("AI Insights")
                 }
                 .tag(2)
+                .accessibilityLabel("AI Insights Tab")
+                .accessibilityHint("Shows AI-powered spending analysis and recommendations")
             
             SettingsView()
                 .tabItem {
@@ -34,6 +40,8 @@ struct ContentView: View {
                     Text("Settings")
                 }
                 .tag(3)
+                .accessibilityLabel("Settings Tab")
+                .accessibilityHint("Access app settings and data management options")
         }
         .environmentObject(configurationManager)
     }

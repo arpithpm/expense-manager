@@ -5,6 +5,57 @@ import PhotosUI
 import UIKit
 import Security
 
+// MARK: - Error Handling
+
+enum ExpenseManagerError: LocalizedError {
+    case invalidAmount
+    case invalidDate
+    case networkError(underlying: Error)
+    case dataCorruption
+    case apiKeyMissing
+    case imageProcessingFailed
+    case persistenceError(underlying: Error)
+    case invalidExpenseData
+    
+    var errorDescription: String? {
+        switch self {
+        case .invalidAmount:
+            return "Invalid expense amount"
+        case .invalidDate:
+            return "Invalid expense date"
+        case .networkError(let error):
+            return "Network error: \(error.localizedDescription)"
+        case .dataCorruption:
+            return "Data corruption detected"
+        case .apiKeyMissing:
+            return "OpenAI API key is missing"
+        case .imageProcessingFailed:
+            return "Failed to process receipt image"
+        case .persistenceError(let error):
+            return "Failed to save data: \(error.localizedDescription)"
+        case .invalidExpenseData:
+            return "Invalid expense data"
+        }
+    }
+    
+    var recoveryDescription: String? {
+        switch self {
+        case .apiKeyMissing:
+            return "Please add your OpenAI API key in Settings"
+        case .networkError:
+            return "Check your internet connection and try again"
+        case .dataCorruption:
+            return "Your data may need to be reset"
+        case .invalidAmount, .invalidDate, .invalidExpenseData:
+            return "Please check your input and try again"
+        case .imageProcessingFailed:
+            return "Try selecting a clearer image of your receipt"
+        case .persistenceError:
+            return "Try restarting the app"
+        }
+    }
+}
+
 // MARK: - Models and Data Structures
 
 struct ExpenseItem: Identifiable, Codable {
@@ -337,7 +388,7 @@ class OpenAIService {
     
     func extractExpenseFromReceipt(_ image: UIImage) async throws -> OpenAIExpenseExtraction {
         guard let imageData = image.jpegData(compressionQuality: 0.8) else {
-            throw OpenAIError.imageProcessingFailed
+            throw ExpenseManagerError.imageProcessingFailed
         }
         
         let base64Image = imageData.base64EncodedString()
@@ -358,7 +409,7 @@ class OpenAIService {
         
         // Use the keychain stored API key
         guard let apiKey = KeychainService.shared.retrieve(for: .openaiKey) else {
-            throw OpenAIError.missingAPIKey
+            throw ExpenseManagerError.apiKeyMissing
         }
         
         guard let url = URL(string: baseURL) else {
@@ -376,7 +427,12 @@ class OpenAIService {
             throw OpenAIError.requestEncodingFailed
         }
         
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            throw ExpenseManagerError.networkError(underlying: error)
+        }
         
         guard let httpResponse = response as? HTTPURLResponse else {
             throw OpenAIError.invalidResponse
@@ -838,23 +894,47 @@ class ExpenseService: ObservableObject {
         }
     }
     
-    func saveExpensesToUserDefaults() {
-        if let data = try? JSONEncoder().encode(expenses) {
+    func saveExpensesToUserDefaults() throws {
+        do {
+            let data = try JSONEncoder().encode(expenses)
             userDefaults.set(data, forKey: expensesKey)
             // Update backup timestamp when data is saved
             userDefaults.set(Date(), forKey: lastBackupKey)
+        } catch {
+            throw ExpenseManagerError.persistenceError(underlying: error)
         }
     }
     
-    func addExpense(_ expense: Expense) -> Expense {
+    func addExpense(_ expense: Expense) throws -> Expense {
+        // Validate expense data
+        guard expense.amount > 0 else {
+            throw ExpenseManagerError.invalidAmount
+        }
+        
+        guard expense.date <= Date() else {
+            throw ExpenseManagerError.invalidDate
+        }
+        
+        guard !expense.merchant.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw ExpenseManagerError.invalidExpenseData
+        }
+        
         expenses.append(expense)
-        saveExpensesToUserDefaults()
+        
+        do {
+            try saveExpensesToUserDefaults()
+        } catch {
+            // Remove the expense if saving failed
+            expenses.removeAll { $0.id == expense.id }
+            throw ExpenseManagerError.persistenceError(underlying: error)
+        }
+        
         return expense
     }
     
-    func deleteExpense(_ expense: Expense) {
+    func deleteExpense(_ expense: Expense) throws {
         expenses.removeAll { $0.id == expense.id }
-        saveExpensesToUserDefaults()
+        try saveExpensesToUserDefaults()
     }
     
     // MARK: - Backup Status Methods

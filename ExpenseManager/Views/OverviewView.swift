@@ -16,6 +16,7 @@ struct OverviewView: View {
     @State private var shimmerOffset: CGFloat = -1
     @State private var iconRotation: Double = 0
     @State private var cardScale: CGFloat = 1.0
+    @State private var shimmerTimer: Timer?
     
     @Binding var selectedTab: Int
     // Computed properties that automatically update when expenseService.expenses changes
@@ -52,8 +53,8 @@ struct OverviewView: View {
             }
         }
         
-        // Shimmer animation - repeats every 4 seconds
-        Timer.scheduledTimer(withTimeInterval: 4.0, repeats: true) { _ in
+        // Shimmer animation - repeats every 4 seconds with proper cleanup
+        shimmerTimer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: true) { _ in
             withAnimation(.linear(duration: 1.5)) {
                 shimmerOffset = 1.3
             }
@@ -175,6 +176,10 @@ struct OverviewView: View {
         .padding(.top, 8)
         .onAppear {
             startAnimations()
+        }
+        .onDisappear {
+            shimmerTimer?.invalidate()
+            shimmerTimer = nil
         }
     }
     
@@ -607,6 +612,8 @@ struct OverviewView: View {
                         }
                         .font(.subheadline)
                         .foregroundColor(.accentColor)
+                        .accessibilityLabel("View All Expenses")
+                        .accessibilityHint("Navigate to complete expense list")
                     }
                     
                     if recentExpenses.count >= 3 {
@@ -761,6 +768,9 @@ struct SummaryCard: View {
                 }
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title): \(amount.formatted(currency: currency))")
+        .accessibilityHint("Summary card showing \(title.lowercased())")
     }
 }
 
