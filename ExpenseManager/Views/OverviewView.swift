@@ -30,6 +30,10 @@ struct OverviewView: View {
     // Additional animation states for other elements
     @State private var addButtonScale: CGFloat = 1.0
     @State private var addButtonRotation: Double = 0
+    @State private var cameraButtonPulse: Bool = false
+    @State private var scanningAnimation: Bool = false
+    @State private var glowIntensity: Double = 0.0
+    @State private var photoSelectionOffset: CGFloat = 0
     
     private var recentExpenses: [Expense] {
         Array(expenseService.expenses.sorted { $0.date > $1.date }.prefix(5))
@@ -314,10 +318,15 @@ struct OverviewView: View {
     }
     
     private var addReceiptSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
             HStack {
-                Text("Add New Expenses")
-                    .font(.headline)
+                HStack(spacing: 8) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                        .foregroundColor(.accentColor)
+                    Text("Add New Expenses")
+                        .font(.headline)
+                }
                 Spacer()
             }
             
@@ -326,62 +335,261 @@ struct OverviewView: View {
                 maxSelectionCount: 10,
                 matching: .images
             ) {
-                HStack {
-                    if isProcessingReceipts {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                        Text("Processing receipts...")
-                            .font(.subheadline)
-                    } else {
-                        Image(systemName: "camera.fill")
-                            .font(.title2)
-                            .scaleEffect(addButtonScale)
-                            .rotationEffect(.degrees(addButtonRotation))
-                        Text("Select Receipt Photos")
-                            .font(.headline)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .foregroundColor(.secondary)
-                }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.accentColor.opacity(0.1))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
+                ZStack {
+                    // Background with gradient and glow effect
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color.accentColor.opacity(0.15),
+                                    Color.accentColor.opacity(0.25),
+                                    Color.accentColor.opacity(0.15)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
                         )
-                )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(
+                                    LinearGradient(
+                                        gradient: Gradient(colors: [
+                                            Color.accentColor.opacity(0.5),
+                                            Color.accentColor.opacity(0.8),
+                                            Color.accentColor.opacity(0.3)
+                                        ]),
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 2
+                                )
+                        )
+                        .shadow(color: Color.accentColor.opacity(glowIntensity), radius: 10, x: 0, y: 0)
+                        .scaleEffect(addButtonScale)
+                    
+                    // Animated scanning lines (when processing)
+                    if isProcessingReceipts {
+                        ZStack {
+                            Rectangle()
+                                .fill(Color.accentColor.opacity(0.3))
+                                .frame(height: 2)
+                                .offset(y: scanningAnimation ? 30 : -30)
+                                .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: scanningAnimation)
+                            
+                            Rectangle()
+                                .fill(Color.accentColor.opacity(0.2))
+                                .frame(height: 1)
+                                .offset(y: scanningAnimation ? 20 : -40)
+                                .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: scanningAnimation)
+                        }
+                        .mask(RoundedRectangle(cornerRadius: 18))
+                    }
+                    
+                    // Main content
+                    HStack(spacing: 16) {
+                        // Camera icon with animations
+                        ZStack {
+                            // Pulsing background circle
+                            Circle()
+                                .fill(Color.accentColor.opacity(cameraButtonPulse ? 0.3 : 0.1))
+                                .frame(width: 60, height: 60)
+                                .scaleEffect(cameraButtonPulse ? 1.1 : 1.0)
+                                .animation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true), value: cameraButtonPulse)
+                            
+                            if isProcessingReceipts {
+                                // Processing state - animated dots
+                                HStack(spacing: 4) {
+                                    ForEach(0..<3) { index in
+                                        Circle()
+                                            .fill(Color.accentColor)
+                                            .frame(width: 6, height: 6)
+                                            .scaleEffect(scanningAnimation ? 1.5 : 0.5)
+                                            .animation(
+                                                .easeInOut(duration: 0.6)
+                                                .repeatForever(autoreverses: true)
+                                                .delay(Double(index) * 0.2),
+                                                value: scanningAnimation
+                                            )
+                                    }
+                                }
+                            } else {
+                                // Camera icon with flash effect
+                                Image(systemName: "camera.fill")
+                                    .font(.system(size: 28, weight: .medium))
+                                    .foregroundColor(.accentColor)
+                                    .scaleEffect(addButtonScale * (cameraButtonPulse ? 1.05 : 1.0))
+                                    .rotationEffect(.degrees(addButtonRotation))
+                                    .overlay(
+                                        // Flash effect
+                                        Image(systemName: "camera.fill")
+                                            .font(.system(size: 28, weight: .medium))
+                                            .foregroundColor(.white)
+                                            .opacity(glowIntensity)
+                                            .scaleEffect(1.2)
+                                            .blur(radius: 4)
+                                    )
+                            }
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(isProcessingReceipts ? "Processing Receipts..." : "Select Receipt Photos")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.primary)
+                                    
+                                    if isProcessingReceipts {
+                                        Text("AI is analyzing your receipts")
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                    } else {
+                                        Text("Tap to scan receipts with AI")
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                
+                                Spacer()
+                                
+                                // Animated arrow or processing indicator
+                                if isProcessingReceipts {
+                                    ProgressView()
+                                        .scaleEffect(0.9)
+                                        .tint(.accentColor)
+                                } else {
+                                    Image(systemName: "arrow.right.circle.fill")
+                                        .font(.title2)
+                                        .foregroundColor(.accentColor)
+                                        .scaleEffect(addButtonScale)
+                                        .rotationEffect(.degrees(addButtonRotation * 0.1))
+                                }
+                            }
+                            
+                            // Feature highlights
+                            if !isProcessingReceipts {
+                                HStack(spacing: 12) {
+                                    Label("AI-Powered", systemImage: "brain.head.profile")
+                                        .font(.caption)
+                                        .foregroundColor(.accentColor)
+                                    
+                                    Label("Multi-Photo", systemImage: "square.stack.3d.up.fill")
+                                        .font(.caption)
+                                        .foregroundColor(.accentColor)
+                                    
+                                    Label("Instant", systemImage: "bolt.fill")
+                                        .font(.caption)
+                                        .foregroundColor(.accentColor)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
+                }
+                .frame(minHeight: 100)
             }
             .disabled(isProcessingReceipts)
             .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                    addButtonScale = pressing ? 0.95 : 1.0
+                    addButtonScale = pressing ? 0.96 : 1.0
+                    glowIntensity = pressing ? 0.4 : 0.0
                 }
             }, perform: {})
             .onTapGesture {
-                // Camera button animation on tap
-                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                // Enhanced camera button animation on tap
+                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
                 impactFeedback.impactOccurred()
                 
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+                withAnimation(.spring(response: 0.2, dampingFraction: 0.4)) {
                     addButtonRotation += 360
-                    addButtonScale = 1.1
+                    addButtonScale = 1.08
+                    glowIntensity = 0.8
                 }
                 
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                // Flash effect
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        glowIntensity = 0.0
+                    }
+                }
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
                         addButtonScale = 1.0
                     }
                 }
             }
+            .onAppear {
+                // Start continuous animations
+                withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
+                    cameraButtonPulse = true
+                }
+                
+                if isProcessingReceipts {
+                    withAnimation(.linear(duration: 0.1)) {
+                        scanningAnimation = true
+                    }
+                }
+            }
+            .onChange(of: isProcessingReceipts) { oldValue, newValue in
+                if newValue {
+                    withAnimation(.linear(duration: 0.1)) {
+                        scanningAnimation = true
+                    }
+                } else {
+                    scanningAnimation = false
+                }
+            }
             
+            // Enhanced selected photos indicator
             if !selectedPhotos.isEmpty {
-                Text("Selected \(selectedPhotos.count) photo\(selectedPhotos.count == 1 ? "" : "s")")
+                HStack(spacing: 12) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                        .font(.title3)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(selectedPhotos.count) photo\(selectedPhotos.count == 1 ? "" : "s") selected")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primary)
+                        
+                        Text("Ready for AI processing")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Button("Clear") {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            selectedPhotos.removeAll()
+                        }
+                    }
                     .font(.caption)
-                    .foregroundColor(.secondary)
-                    .transition(.opacity.combined(with: .scale))
+                    .foregroundColor(.accentColor)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.green.opacity(0.1))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                        )
+                )
+                .offset(y: photoSelectionOffset)
+                .transition(.asymmetric(
+                    insertion: .move(edge: .bottom).combined(with: .opacity),
+                    removal: .move(edge: .bottom).combined(with: .opacity)
+                ))
+                .onAppear {
+                    withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                        photoSelectionOffset = 0
+                    }
+                }
             }
         }
     }

@@ -13,6 +13,7 @@ struct SettingsView: View {
     @State private var showingEmailOptions = false
     @State private var showingSampleDataAlert = false
     @State private var showingDataResetView = false
+    @State private var showingExportView = false
     
     var body: some View {
         NavigationView {
@@ -88,6 +89,9 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $showingDataResetView) {
             DataResetView()
+        }
+        .sheet(isPresented: $showingExportView) {
+            DataExportView()
         }
     }
     
@@ -295,6 +299,32 @@ struct SettingsView: View {
     
     private var dataManagementSection: some View {
         Section("Data Management") {
+            Button(action: {
+                showingExportView = true
+            }) {
+                HStack {
+                    Image(systemName: "square.and.arrow.up")
+                        .foregroundColor(.blue)
+                    Text("Export Data")
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("\(expenseService.expenses.count) expenses")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        if expenseService.expenses.count > 0 {
+                            Text("CSV, JSON, PDF")
+                                .font(.caption2)
+                                .foregroundColor(.blue)
+                        }
+                    }
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.secondary)
+                        .font(.caption)
+                }
+            }
+            .foregroundColor(.primary)
+            
             Button(action: {
                 showingDataResetView = true
             }) {
@@ -906,5 +936,558 @@ struct DataResetView: View {
 
 #Preview("DataResetView") {
     DataResetView()
+}
+
+// MARK: - Data Export View
+struct DataExportView: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var expenseService = ExpenseService.shared
+    @State private var selectedFormat: ExportFormat = .csv
+    @State private var selectedDateRange: DateRangeOption = .allTime
+    @State private var customStartDate = Date()
+    @State private var customEndDate = Date()
+    @State private var includeItems = true
+    @State private var includeFinancialBreakdown = true
+    @State private var isExporting = false
+    @State private var exportProgress: Double = 0.0
+    @State private var showingShareSheet = false
+    @State private var exportedFileURL: URL?
+    @State private var showingAlert = false
+    @State private var alertMessage = ""
+    @State private var showingCustomDatePicker = false
+    
+    private var filteredExpenses: [Expense] {
+        let expenses = expenseService.expenses
+        
+        switch selectedDateRange {
+        case .allTime:
+            return expenses
+        case .lastMonth:
+            let oneMonthAgo = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+            return expenses.filter { $0.date >= oneMonthAgo }
+        case .last3Months:
+            let threeMonthsAgo = Calendar.current.date(byAdding: .month, value: -3, to: Date()) ?? Date()
+            return expenses.filter { $0.date >= threeMonthsAgo }
+        case .lastYear:
+            let oneYearAgo = Calendar.current.date(byAdding: .year, value: -1, to: Date()) ?? Date()
+            return expenses.filter { $0.date >= oneYearAgo }
+        case .custom:
+            return expenses.filter { expense in
+                expense.date >= customStartDate && expense.date <= customEndDate
+            }
+        }
+    }
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 24) {
+                    headerSection
+                    formatSection
+                    dateRangeSection
+                    optionsSection
+                    previewSection
+                    exportButton
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+            }
+            .navigationTitle("Export Data")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    if isExporting {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    }
+                }
+            }
+        }
+        .overlay {
+            if isExporting {
+                exportProgressOverlay
+            }
+        }
+        .sheet(isPresented: $showingShareSheet) {
+            if let url = exportedFileURL {
+                ShareSheet(activityItems: [url])
+            }
+        }
+        .alert("Export Status", isPresented: $showingAlert) {
+            Button("OK") { }
+        } message: {
+            Text(alertMessage)
+        }
+    }
+    
+    private var headerSection: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "square.and.arrow.up.circle.fill")
+                .font(.system(size: 50))
+                .foregroundColor(.blue)
+            
+            Text("Export Your Data")
+                .font(.title2)
+                .fontWeight(.semibold)
+            
+            Text("Choose format, date range, and options to export your expense data for backup or analysis.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.top, 8)
+    }
+    
+    private var formatSection: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Text("📄 Export Format")
+                    .font(.headline)
+                Spacer()
+            }
+            
+            LazyVGrid(columns: [
+                GridItem(.flexible()),
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ], spacing: 12) {
+                ForEach(ExportFormat.allCases, id: \.self) { format in
+                    FormatCard(
+                        format: format,
+                        isSelected: selectedFormat == format
+                    ) {
+                        selectedFormat = format
+                    }
+                }
+            }
+        }
+    }
+    
+    private var dateRangeSection: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Text("📅 Date Range")
+                    .font(.headline)
+                Spacer()
+                Text("\(filteredExpenses.count) expenses")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            VStack(spacing: 12) {
+                ForEach(DateRangeOption.allCases, id: \.self) { range in
+                    DateRangeRow(
+                        range: range,
+                        isSelected: selectedDateRange == range,
+                        expenseCount: getExpenseCount(for: range)
+                    ) {
+                        selectedDateRange = range
+                        if range == .custom {
+                            showingCustomDatePicker = true
+                        }
+                    }
+                }
+            }
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+            .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
+            
+            if selectedDateRange == .custom {
+                HStack(spacing: 16) {
+                    DatePicker("From", selection: $customStartDate, displayedComponents: .date)
+                        .datePickerStyle(.compact)
+                    
+                    DatePicker("To", selection: $customEndDate, displayedComponents: .date)
+                        .datePickerStyle(.compact)
+                }
+                .padding()
+                .background(Color.blue.opacity(0.1))
+                .cornerRadius(12)
+            }
+        }
+    }
+    
+    private var optionsSection: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Text("⚙️ Export Options")
+                    .font(.headline)
+                Spacer()
+            }
+            
+            VStack(spacing: 12) {
+                ToggleRow(
+                    title: "Include Item Details",
+                    description: "Export individual items from receipts",
+                    systemImage: "list.bullet.rectangle",
+                    isOn: $includeItems
+                )
+                
+                ToggleRow(
+                    title: "Include Financial Breakdown",
+                    description: "Export subtotals, taxes, tips, and fees",
+                    systemImage: "dollarsign.circle",
+                    isOn: $includeFinancialBreakdown
+                )
+            }
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+            .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
+        }
+    }
+    
+    private var previewSection: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Text("👁️ Export Preview")
+                    .font(.headline)
+                Spacer()
+            }
+            
+            VStack(spacing: 12) {
+                HStack {
+                    Text("Format:")
+                        .fontWeight(.medium)
+                    Spacer()
+                    Text(selectedFormat.displayName)
+                        .foregroundColor(.secondary)
+                }
+                
+                HStack {
+                    Text("Date Range:")
+                        .fontWeight(.medium)
+                    Spacer()
+                    Text(selectedDateRange.displayName)
+                        .foregroundColor(.secondary)
+                }
+                
+                HStack {
+                    Text("Expenses:")
+                        .fontWeight(.medium)
+                    Spacer()
+                    Text("\(filteredExpenses.count)")
+                        .foregroundColor(.secondary)
+                }
+                
+                if includeItems {
+                    HStack {
+                        Text("Total Items:")
+                            .fontWeight(.medium)
+                        Spacer()
+                        Text("\(getTotalItemCount())")
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                HStack {
+                    Text("Estimated File Size:")
+                        .fontWeight(.medium)
+                    Spacer()
+                    Text(estimatedFileSize)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding()
+            .background(Color(.systemGroupedBackground))
+            .cornerRadius(12)
+        }
+    }
+    
+    private var exportButton: some View {
+        Button(action: {
+            performExport()
+        }) {
+            HStack {
+                if isExporting {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    Text("Exporting...")
+                } else {
+                    Image(systemName: "square.and.arrow.up")
+                    Text("Export \(selectedFormat.displayName)")
+                }
+            }
+            .font(.headline)
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(
+                LinearGradient(
+                    gradient: Gradient(colors: [.blue, .blue.opacity(0.8)]),
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .cornerRadius(12)
+            .shadow(color: .blue.opacity(0.3), radius: 4, x: 0, y: 2)
+        }
+        .disabled(isExporting || filteredExpenses.isEmpty)
+    }
+    
+    private var exportProgressOverlay: some View {
+        Color.black.opacity(0.3)
+            .ignoresSafeArea()
+            .overlay {
+                VStack(spacing: 20) {
+                    ProgressView(value: exportProgress)
+                        .progressViewStyle(LinearProgressViewStyle(tint: .blue))
+                        .scaleEffect(1.2)
+                    
+                    Text("Exporting \(selectedFormat.displayName)...")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    
+                    Text("\(Int(exportProgress * 100))%")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.8))
+                }
+                .padding(40)
+                .background(Color.black.opacity(0.8))
+                .cornerRadius(16)
+            }
+    }
+    
+    // MARK: - Helper Functions
+    
+    private func getExpenseCount(for range: DateRangeOption) -> Int {
+        let expenses = expenseService.expenses
+        
+        switch range {
+        case .allTime:
+            return expenses.count
+        case .lastMonth:
+            let oneMonthAgo = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+            return expenses.filter { $0.date >= oneMonthAgo }.count
+        case .last3Months:
+            let threeMonthsAgo = Calendar.current.date(byAdding: .month, value: -3, to: Date()) ?? Date()
+            return expenses.filter { $0.date >= threeMonthsAgo }.count
+        case .lastYear:
+            let oneYearAgo = Calendar.current.date(byAdding: .year, value: -1, to: Date()) ?? Date()
+            return expenses.filter { $0.date >= oneYearAgo }.count
+        case .custom:
+            return expenses.filter { expense in
+                expense.date >= customStartDate && expense.date <= customEndDate
+            }.count
+        }
+    }
+    
+    private func getTotalItemCount() -> Int {
+        filteredExpenses.compactMap { $0.items }.flatMap { $0 }.count
+    }
+    
+    private var estimatedFileSize: String {
+        let baseSize = filteredExpenses.count * (selectedFormat == .pdf ? 2000 : (selectedFormat == .json ? 800 : 200))
+        let itemsSize = includeItems ? getTotalItemCount() * (selectedFormat == .pdf ? 500 : 100) : 0
+        let totalSize = baseSize + itemsSize
+        
+        if totalSize < 1024 {
+            return "\(totalSize) bytes"
+        } else if totalSize < 1024 * 1024 {
+            return String(format: "%.1f KB", Double(totalSize) / 1024)
+        } else {
+            return String(format: "%.1f MB", Double(totalSize) / (1024 * 1024))
+        }
+    }
+    
+    private func performExport() {
+        isExporting = true
+        exportProgress = 0.0
+        
+        Task {
+            do {
+                let exporter = DataExporter()
+                
+                // Simulate progress updates
+                await MainActor.run { exportProgress = 0.2 }
+                
+                let url = try await exporter.exportData(
+                    expenses: filteredExpenses,
+                    format: selectedFormat,
+                    includeItems: includeItems,
+                    includeFinancialBreakdown: includeFinancialBreakdown
+                ) { progress in
+                    Task { @MainActor in
+                        exportProgress = 0.2 + (progress * 0.8)
+                    }
+                }
+                
+                await MainActor.run {
+                    exportProgress = 1.0
+                    exportedFileURL = url
+                    isExporting = false
+                    showingShareSheet = true
+                }
+            } catch {
+                await MainActor.run {
+                    isExporting = false
+                    alertMessage = "Export failed: \(error.localizedDescription)"
+                    showingAlert = true
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Supporting Views and Types
+
+enum ExportFormat: CaseIterable {
+    case csv, json
+    
+    var displayName: String {
+        switch self {
+        case .csv: return "CSV"
+        case .json: return "JSON"
+        }
+    }
+    
+    var description: String {
+        switch self {
+        case .csv: return "Spreadsheet format"
+        case .json: return "Structured data"
+        }
+    }
+    
+    var fileExtension: String {
+        switch self {
+        case .csv: return "csv"
+        case .json: return "json"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .csv: return "tablecells"
+        case .json: return "curlybraces"
+        }
+    }
+}
+
+enum DateRangeOption: CaseIterable {
+    case allTime, lastMonth, last3Months, lastYear, custom
+    
+    var displayName: String {
+        switch self {
+        case .allTime: return "All Time"
+        case .lastMonth: return "Last Month"
+        case .last3Months: return "Last 3 Months"
+        case .lastYear: return "Last Year"
+        case .custom: return "Custom Range"
+        }
+    }
+}
+
+struct FormatCard: View {
+    let format: ExportFormat
+    let isSelected: Bool
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 8) {
+                Image(systemName: format.icon)
+                    .font(.title2)
+                    .foregroundColor(isSelected ? .white : .blue)
+                
+                Text(format.displayName)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(isSelected ? .white : .primary)
+                
+                Text(format.description)
+                    .font(.caption2)
+                    .foregroundColor(isSelected ? .white.opacity(0.8) : .secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding()
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isSelected ? Color.blue : Color(.systemBackground))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.blue.opacity(isSelected ? 0 : 0.3), lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+struct DateRangeRow: View {
+    let range: DateRangeOption
+    let isSelected: Bool
+    let expenseCount: Int
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack {
+                Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
+                    .foregroundColor(isSelected ? .blue : .secondary)
+                
+                Text(range.displayName)
+                    .fontWeight(isSelected ? .medium : .regular)
+                
+                Spacer()
+                
+                Text("\(expenseCount)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
+        .padding(.vertical, 4)
+    }
+}
+
+struct ToggleRow: View {
+    let title: String
+    let description: String
+    let systemImage: String
+    @Binding var isOn: Bool
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.title3)
+                .foregroundColor(.blue)
+                .frame(width: 24)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                Text(description)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            Toggle("", isOn: $isOn)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+    
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+        return controller
+    }
+    
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
