@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import PhotosUI
 import UIKit
+import CoreData
 
 class ExpenseService: ObservableObject {
     // Deprecated: Use CoreDataExpenseService.shared instead

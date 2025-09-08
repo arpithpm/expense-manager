@@ -1,5 +1,6 @@
 import SwiftUI
 import Foundation
+import CoreData
 
 @main
 struct ExpenseManagerApp: App {
