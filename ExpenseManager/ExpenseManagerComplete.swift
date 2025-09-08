@@ -7,7 +7,7 @@ import Security
 
 // MARK: - Error Handling
 
-enum ExpenseManagerError: LocalizedError {
+enum ExpenseManagerError: LocalizedError, Equatable {
     case invalidAmount
     case invalidDate
     case networkError(underlying: Error)
@@ -16,6 +16,8 @@ enum ExpenseManagerError: LocalizedError {
     case imageProcessingFailed
     case persistenceError(underlying: Error)
     case invalidExpenseData
+    case importValidationFailed(String)
+    case importProcessingFailed(String)
     
     var errorDescription: String? {
         switch self {
@@ -35,6 +37,10 @@ enum ExpenseManagerError: LocalizedError {
             return "Failed to save data: \(error.localizedDescription)"
         case .invalidExpenseData:
             return "Invalid expense data"
+        case .importValidationFailed(let message):
+            return "Import validation failed: \(message)"
+        case .importProcessingFailed(let message):
+            return "Import processing failed: \(message)"
         }
     }
     
@@ -52,6 +58,29 @@ enum ExpenseManagerError: LocalizedError {
             return "Try selecting a clearer image of your receipt"
         case .persistenceError:
             return "Try restarting the app"
+        case .importValidationFailed, .importProcessingFailed:
+            return "Try selecting a different file or check file format"
+        }
+    }
+    
+    static func == (lhs: ExpenseManagerError, rhs: ExpenseManagerError) -> Bool {
+        switch (lhs, rhs) {
+        case (.invalidAmount, .invalidAmount),
+             (.invalidDate, .invalidDate),
+             (.dataCorruption, .dataCorruption),
+             (.apiKeyMissing, .apiKeyMissing),
+             (.imageProcessingFailed, .imageProcessingFailed),
+             (.invalidExpenseData, .invalidExpenseData):
+            return true
+        case (.networkError(let lhsError), .networkError(let rhsError)):
+            return lhsError.localizedDescription == rhsError.localizedDescription
+        case (.persistenceError(let lhsError), .persistenceError(let rhsError)):
+            return lhsError.localizedDescription == rhsError.localizedDescription
+        case (.importValidationFailed(let lhsMsg), .importValidationFailed(let rhsMsg)),
+             (.importProcessingFailed(let lhsMsg), .importProcessingFailed(let rhsMsg)):
+            return lhsMsg == rhsMsg
+        default:
+            return false
         }
     }
 }
@@ -693,7 +722,7 @@ class ExpenseService: ObservableObject {
                     let expense = try createExpenseFromExtraction(extractedData)
                     
                     // Save expense locally
-                    _ = addExpense(expense)
+                    _ = try addExpense(expense)
                     
                     processedCount += 1
                 }
@@ -996,7 +1025,7 @@ class ExpenseService: ObservableObject {
         expenses.removeAll { expense in
             ExpenseService.sampleMerchants.contains(expense.merchant)
         }
-        saveExpensesToUserDefaults()
+        try? saveExpensesToUserDefaults()
     }
     
     // MARK: - Sample Data for First Launch
@@ -1112,8 +1141,116 @@ class ExpenseService: ObservableObject {
             expenses.append(expense)
         }
         
-        saveExpensesToUserDefaults()
+        try? saveExpensesToUserDefaults()
         print("Added \(sampleExpenses.count) sample expenses with item details for first launch")
+    }
+    
+    // MARK: - Import Methods
+    
+    /// Adds multiple expenses from import, returns result with import statistics
+    func addImportedExpenses(_ expenses: [Expense], allowDuplicates: Bool = false) throws -> ImportResult {
+        var importedExpenses = 0
+        var duplicatesSkipped = 0
+        var errors: [String] = []
+        
+        for expense in expenses {
+            do {
+                // Check for duplicates if not allowing them
+                if !allowDuplicates && isExpenseDuplicate(expense) {
+                    duplicatesSkipped += 1
+                    continue
+                }
+                
+                // Validate and add the expense
+                _ = try addExpense(expense)
+                importedExpenses += 1
+            } catch {
+                errors.append("Failed to import expense from \(expense.merchant): \(error.localizedDescription)")
+            }
+        }
+        
+        return ImportResult(
+            importedCount: importedExpenses,
+            skippedCount: 0,
+            duplicateCount: duplicatesSkipped,
+            errors: errors
+        )
+    }
+    
+    /// Checks if an expense is likely a duplicate
+    private func isExpenseDuplicate(_ newExpense: Expense) -> Bool {
+        return expenses.contains { existingExpense in
+            // Check for exact ID match first
+            if existingExpense.id == newExpense.id {
+                return true
+            }
+            
+            // Check for similar expenses (same merchant, amount, and date within 1 day)
+            let calendar = Calendar.current
+            let daysBetween = calendar.dateComponents([.day], from: existingExpense.date, to: newExpense.date).day ?? Int.max
+            
+            return existingExpense.merchant.lowercased() == newExpense.merchant.lowercased() &&
+                   abs(existingExpense.amount - newExpense.amount) < 0.01 &&
+                   abs(daysBetween) <= 1
+        }
+    }
+    
+    /// Validates that expenses can be imported without issues
+    func validateImportedExpenses(_ expenses: [Expense]) -> [String] {
+        var validationErrors: [String] = []
+        
+        for (index, expense) in expenses.enumerated() {
+            if expense.amount <= 0 {
+                validationErrors.append("Expense \(index + 1): Invalid amount (\(expense.amount))")
+            }
+            
+            if expense.merchant.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                validationErrors.append("Expense \(index + 1): Empty merchant name")
+            }
+            
+            if expense.date > Date() {
+                validationErrors.append("Expense \(index + 1): Future date (\(expense.date))")
+            }
+        }
+        
+        return validationErrors
+    }
+    
+    /// Generates statistics about expenses for import preview
+    func generateImportSummary(for expenses: [Expense]) -> ImportSummary {
+        guard !expenses.isEmpty else {
+            return ImportSummary(
+                totalExpenses: 0,
+                dateRange: nil,
+                categories: [],
+                totalAmount: 0.0,
+                currencies: [],
+                hasItems: false,
+                hasFinancialBreakdown: false
+            )
+        }
+        
+        let sortedDates = expenses.map { $0.date }.sorted()
+        let dateRange = DateRange(start: sortedDates.first!, end: sortedDates.last!)
+        
+        let categories = Set(expenses.map { $0.category })
+        let currencies = Set(expenses.map { $0.currency })
+        let totalAmount = expenses.reduce(0) { $0 + $1.amount }
+        
+        let hasItems = expenses.contains { $0.items != nil && !($0.items?.isEmpty ?? true) }
+        let hasFinancialBreakdown = expenses.contains { 
+            $0.subtotal != nil || $0.taxAmount != nil || $0.tip != nil || $0.fees != nil 
+        }
+        
+        return ImportSummary(
+            totalExpenses: expenses.count,
+            dateRange: dateRange,
+            categories: categories,
+            totalAmount: totalAmount,
+            currencies: currencies,
+            hasItems: hasItems,
+            hasFinancialBreakdown: hasFinancialBreakdown
+        )
     }
 }
 
@@ -1273,13 +1410,13 @@ class DataResetManager: ObservableObject {
         switch category {
         case .allExpenses:
             expenseService.expenses.removeAll()
-            expenseService.saveExpensesToUserDefaults()
+            try? expenseService.saveExpensesToUserDefaults()
             
         case .sampleExpenses:
             expenseService.expenses.removeAll { expense in
                 ExpenseService.sampleMerchants.contains(expense.merchant)
             }
-            expenseService.saveExpensesToUserDefaults()
+            try? expenseService.saveExpensesToUserDefaults()
             
         case .openAIKey:
             try keychainService.deleteAPIKey()
@@ -1287,7 +1424,7 @@ class DataResetManager: ObservableObject {
         case .completeReset:
             // Reset everything
             expenseService.expenses.removeAll()
-            expenseService.saveExpensesToUserDefaults()
+            try? expenseService.saveExpensesToUserDefaults()
             try? keychainService.deleteAPIKey()
             
             // Clear all UserDefaults for this app
@@ -2592,7 +2729,38 @@ struct CategoryInsightCard: View {
     }
 }
 
-// MARK: - Data Export Service
+// MARK: - Data Import/Export Service
+
+enum ImportStep: Equatable {
+    case selectFile
+    case validating
+    case validated(summary: ImportSummary)
+    case importing
+    case completed(result: ImportResult)
+    case failed(error: ExpenseManagerError)
+}
+
+struct DateRange: Equatable {
+    let start: Date
+    let end: Date
+}
+
+struct ImportSummary: Equatable {
+    let totalExpenses: Int
+    let dateRange: DateRange?
+    let categories: Set<String>
+    let totalAmount: Double
+    let currencies: Set<String>
+    let hasItems: Bool
+    let hasFinancialBreakdown: Bool
+}
+
+struct ImportResult: Equatable {
+    let importedCount: Int
+    let skippedCount: Int
+    let duplicateCount: Int
+    let errors: [String]
+}
 
 class DataExporter {
     func exportData(
@@ -2765,6 +2933,317 @@ class DataExporter {
         try jsonData.write(to: url)
     }
     
+    
+    // MARK: - Import Methods
+    
+    func validateImportFile(url: URL) async throws -> ImportSummary {
+        guard url.pathExtension.lowercased() == "json" else {
+            throw ExpenseManagerError.invalidExpenseData
+        }
+        
+        let data = try Data(contentsOf: url)
+        
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw ExpenseManagerError.dataCorruption
+        }
+        
+        // Validate required structure
+        guard let expenses = json["expenses"] as? [[String: Any]] else {
+            throw ExpenseManagerError.invalidExpenseData
+        }
+        
+        // Validate each expense has required fields
+        for expenseData in expenses {
+            guard expenseData["merchant"] as? String != nil,
+                  expenseData["amount"] as? Double != nil,
+                  expenseData["currency"] as? String != nil,
+                  expenseData["category"] as? String != nil else {
+                throw ExpenseManagerError.invalidExpenseData
+            }
+        }
+        
+        // Create summary
+        let totalExpenses = expenses.count
+        let amounts = expenses.compactMap { $0["amount"] as? Double }
+        let totalAmount = amounts.reduce(0, +)
+        
+        let categories = Set(expenses.compactMap { $0["category"] as? String })
+        let currencies = Set(expenses.compactMap { $0["currency"] as? String })
+        
+        // Check for date range
+        let dateFormatter = ISO8601DateFormatter()
+        let dates = expenses.compactMap { expenseData -> Date? in
+            guard let dateString = expenseData["date"] as? String else { return nil }
+            return dateFormatter.date(from: dateString)
+        }
+        
+        let dateRange: DateRange? = {
+            guard let minDate = dates.min(), let maxDate = dates.max() else { return nil }
+            return DateRange(start: minDate, end: maxDate)
+        }()
+        
+        // Check for additional data
+        let hasItems = expenses.contains { ($0["items"] as? [[String: Any]])?.isEmpty == false }
+        let hasFinancialBreakdown = expenses.contains { 
+            $0["taxAmount"] != nil || $0["subtotal"] != nil || $0["tip"] != nil 
+        }
+        
+        return ImportSummary(
+            totalExpenses: totalExpenses,
+            dateRange: dateRange,
+            categories: categories,
+            totalAmount: totalAmount,
+            currencies: currencies,
+            hasItems: hasItems,
+            hasFinancialBreakdown: hasFinancialBreakdown
+        )
+    }
+    
+    func importExpenses(
+        from url: URL,
+        expenseService: ExpenseService,
+        progressCallback: @escaping (Double) -> Void = { _ in }
+    ) async throws -> ImportResult {
+        
+        let data = try Data(contentsOf: url)
+        
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let expensesData = json["expenses"] as? [[String: Any]] else {
+            throw ExpenseManagerError.dataCorruption
+        }
+        
+        var parsedExpenses: [Expense] = []
+        var errors: [String] = []
+        
+        // Parse all expenses first
+        for (index, expenseData) in expensesData.enumerated() {
+            await MainActor.run {
+                progressCallback(Double(index) / Double(expensesData.count) * 0.5) // First half is parsing
+            }
+            
+            do {
+                let expense = try parseExpenseFromJSON(expenseData)
+                parsedExpenses.append(expense)
+            } catch {
+                errors.append("Row \(index + 1): \(error.localizedDescription)")
+            }
+        }
+        
+        // Use ExpenseService to handle the actual import with duplicate detection
+        let expensesToImport = parsedExpenses // Create local copy to avoid concurrency issue
+        let result = try await MainActor.run {
+            do {
+                return try expenseService.addImportedExpenses(expensesToImport, allowDuplicates: false)
+            } catch {
+                throw error
+            }
+        }
+        
+        // Combine parsing errors with import errors
+        let allErrors = errors + result.errors
+        
+        await MainActor.run {
+            progressCallback(1.0)
+        }
+        
+        return ImportResult(
+            importedCount: result.importedCount,
+            skippedCount: result.skippedCount,
+            duplicateCount: result.duplicateCount,
+            errors: allErrors
+        )
+    }
+    
+    private func parseExpenseFromJSON(_ data: [String: Any]) throws -> Expense {
+        // Parse required fields
+        guard let merchantStr = data["merchant"] as? String,
+              let amount = data["amount"] as? Double,
+              let currency = data["currency"] as? String,
+              let category = data["category"] as? String else {
+            throw ExpenseManagerError.invalidExpenseData
+        }
+        
+        // Parse date
+        let dateFormatter = ISO8601DateFormatter()
+        let date: Date
+        if let dateString = data["date"] as? String,
+           let parsedDate = dateFormatter.date(from: dateString) {
+            date = parsedDate
+        } else {
+            date = Date() // Fallback to current date
+        }
+        
+        // Parse optional fields
+        let description = data["description"] as? String
+        let paymentMethod = data["paymentMethod"] as? String
+        let taxAmount = data["taxAmount"] as? Double
+        let subtotal = data["subtotal"] as? Double
+        let tip = data["tip"] as? Double
+        let fees = data["fees"] as? Double
+        
+        // Parse items
+        var items: [ExpenseItem]? = nil
+        if let itemsData = data["items"] as? [[String: Any]] {
+            items = try itemsData.map { itemData in
+                try parseExpenseItemFromJSON(itemData)
+            }
+        }
+        
+        // Parse or generate ID
+        let id: UUID
+        if let idString = data["id"] as? String,
+           let parsedId = UUID(uuidString: idString) {
+            id = parsedId
+        } else {
+            id = UUID() // Generate new ID if not provided
+        }
+        
+        return Expense(
+            id: id,
+            date: date,
+            merchant: merchantStr,
+            amount: amount,
+            currency: currency,
+            category: category,
+            description: description,
+            paymentMethod: paymentMethod,
+            taxAmount: taxAmount,
+            items: items,
+            subtotal: subtotal,
+            fees: fees,
+            tip: tip
+        )
+    }
+    
+    private func parseExpenseItemFromJSON(_ data: [String: Any]) throws -> ExpenseItem {
+        guard let name = data["name"] as? String,
+              let totalPrice = data["totalPrice"] as? Double else {
+            throw ExpenseManagerError.invalidExpenseData
+        }
+        
+        let id: UUID
+        if let idString = data["id"] as? String,
+           let parsedId = UUID(uuidString: idString) {
+            id = parsedId
+        } else {
+            id = UUID()
+        }
+        
+        let quantity = data["quantity"] as? Double
+        let unitPrice = data["unitPrice"] as? Double
+        let category = data["category"] as? String
+        let description = data["description"] as? String
+        
+        return ExpenseItem(
+            id: id,
+            name: name,
+            quantity: quantity,
+            unitPrice: unitPrice,
+            totalPrice: totalPrice,
+            category: category,
+            description: description
+        )
+    }
+    
+    func generateSampleImportFile() async throws -> URL {
+        // Use the app's Documents directory which is accessible for sharing
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let fileURL = documentsPath.appendingPathComponent("SampleExpenseImport.json")
+        
+        // Create sample data structure
+        let sampleData: [String: Any] = [
+            "exportDate": ISO8601DateFormatter().string(from: Date()),
+            "version": "2.1.0",
+            "totalExpenses": 2,
+            "totalAmount": 68.17,
+            "includeItems": true,
+            "includeFinancialBreakdown": true,
+            "expenses": [
+                [
+                    "id": UUID().uuidString,
+                    "date": ISO8601DateFormatter().string(from: Calendar.current.date(byAdding: .day, value: -1, to: Date())!),
+                    "merchant": "Sample Grocery Store",
+                    "amount": 45.67,
+                    "currency": "USD",
+                    "category": "Food & Dining",
+                    "description": "Weekly groceries",
+                    "paymentMethod": "Credit Card",
+                    "taxAmount": 3.20,
+                    "subtotal": 42.47,
+                    "tip": 0,
+                    "fees": 0,
+                    "items": [
+                        [
+                            "id": UUID().uuidString,
+                            "name": "Organic Milk",
+                            "quantity": 1,
+                            "unitPrice": 4.99,
+                            "totalPrice": 4.99,
+                            "category": "Dairy",
+                            "description": "1L organic whole milk"
+                        ],
+                        [
+                            "id": UUID().uuidString,
+                            "name": "Whole Wheat Bread",
+                            "quantity": 2,
+                            "unitPrice": 3.50,
+                            "totalPrice": 7.00,
+                            "category": "Bakery",
+                            "description": "Fresh baked bread"
+                        ]
+                    ]
+                ],
+                [
+                    "id": UUID().uuidString,
+                    "date": ISO8601DateFormatter().string(from: Calendar.current.date(byAdding: .day, value: -2, to: Date())!),
+                    "merchant": "Coffee Shop Downtown",
+                    "amount": 22.50,
+                    "currency": "USD",
+                    "category": "Food & Dining",
+                    "description": "Morning coffee meeting",
+                    "paymentMethod": "Debit Card",
+                    "taxAmount": 1.80,
+                    "subtotal": 19.70,
+                    "tip": 1.00,
+                    "fees": 0,
+                    "items": [
+                        [
+                            "id": UUID().uuidString,
+                            "name": "Large Cappuccino",
+                            "quantity": 2,
+                            "unitPrice": 5.50,
+                            "totalPrice": 11.00,
+                            "category": "Beverages",
+                            "description": "Extra shot, oat milk"
+                        ],
+                        [
+                            "id": UUID().uuidString,
+                            "name": "Almond Croissant",
+                            "quantity": 2,
+                            "unitPrice": 4.35,
+                            "totalPrice": 8.70,
+                            "category": "Pastries",
+                            "description": "Freshly baked"
+                        ]
+                    ]
+                ]
+            ],
+            "summary": [
+                "categoryTotals": [
+                    "Food & Dining": 68.17
+                ],
+                "dateRange": [
+                    "start": Calendar.current.date(byAdding: .day, value: -2, to: Date())!.timeIntervalSince1970,
+                    "end": Calendar.current.date(byAdding: .day, value: -1, to: Date())!.timeIntervalSince1970
+                ]
+            ]
+        ]
+        
+        let jsonData = try JSONSerialization.data(withJSONObject: sampleData, options: .prettyPrinted)
+        try jsonData.write(to: fileURL)
+        
+        return fileURL
+    }
     
     // MARK: - Helper Methods
     private func escapeCSV(_ string: String) -> String {

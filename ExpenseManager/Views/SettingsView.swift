@@ -4,7 +4,7 @@ import MessageUI
 
 struct SettingsView: View {
     @EnvironmentObject var configurationManager: ConfigurationManager
-    @ObservedObject private var expenseService = ExpenseService.shared
+    @ObservedObject private var expenseService = CoreDataExpenseService.shared
     @State private var showingConfigurationSheet = false
     @State private var showingClearAlert = false
     @State private var showingSuccessAlert = false
@@ -14,6 +14,7 @@ struct SettingsView: View {
     @State private var showingSampleDataAlert = false
     @State private var showingDataResetView = false
     @State private var showingExportView = false
+    
     
     var body: some View {
         NavigationView {
@@ -94,6 +95,7 @@ struct SettingsView: View {
             DataExportView()
         }
     }
+    
     
     private var connectionStatusSection: some View {
         Section("OpenAI Connection Status") {
@@ -313,7 +315,7 @@ struct SettingsView: View {
                             .foregroundColor(.secondary)
                         
                         if expenseService.expenses.count > 0 {
-                            Text("CSV, JSON, PDF")
+                            Text("CSV, JSON")
                                 .font(.caption2)
                                 .foregroundColor(.blue)
                         }
@@ -324,6 +326,7 @@ struct SettingsView: View {
                 }
             }
             .foregroundColor(.primary)
+            
             
             Button(action: {
                 showingDataResetView = true
@@ -423,7 +426,7 @@ struct SettingsView: View {
         ]
         
         for expense in sampleExpenses {
-            let _ = expenseService.addExpense(expense)
+            let _ = try? expenseService.addExpense(expense)
         }
     }
     
@@ -941,7 +944,7 @@ struct DataResetView: View {
 // MARK: - Data Export View
 struct DataExportView: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject private var expenseService = ExpenseService.shared
+    @ObservedObject private var expenseService = CoreDataExpenseService.shared
     @State private var selectedFormat: ExportFormat = .csv
     @State private var selectedDateRange: DateRangeOption = .allTime
     @State private var customStartDate = Date()
@@ -1053,7 +1056,6 @@ struct DataExportView: View {
             }
             
             LazyVGrid(columns: [
-                GridItem(.flexible()),
                 GridItem(.flexible()),
                 GridItem(.flexible())
             ], spacing: 12) {
@@ -1285,8 +1287,8 @@ struct DataExportView: View {
     }
     
     private var estimatedFileSize: String {
-        let baseSize = filteredExpenses.count * (selectedFormat == .pdf ? 2000 : (selectedFormat == .json ? 800 : 200))
-        let itemsSize = includeItems ? getTotalItemCount() * (selectedFormat == .pdf ? 500 : 100) : 0
+        let baseSize = filteredExpenses.count * (selectedFormat == .json ? 800 : 200)
+        let itemsSize = includeItems ? getTotalItemCount() * 100 : 0
         let totalSize = baseSize + itemsSize
         
         if totalSize < 1024 {
@@ -1338,38 +1340,6 @@ struct DataExportView: View {
 }
 
 // MARK: - Supporting Views and Types
-
-enum ExportFormat: CaseIterable {
-    case csv, json
-    
-    var displayName: String {
-        switch self {
-        case .csv: return "CSV"
-        case .json: return "JSON"
-        }
-    }
-    
-    var description: String {
-        switch self {
-        case .csv: return "Spreadsheet format"
-        case .json: return "Structured data"
-        }
-    }
-    
-    var fileExtension: String {
-        switch self {
-        case .csv: return "csv"
-        case .json: return "json"
-        }
-    }
-    
-    var icon: String {
-        switch self {
-        case .csv: return "tablecells"
-        case .json: return "curlybraces"
-        }
-    }
-}
 
 enum DateRangeOption: CaseIterable {
     case allTime, lastMonth, last3Months, lastYear, custom
@@ -1490,4 +1460,3 @@ struct ShareSheet: UIViewControllerRepresentable {
     
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
-

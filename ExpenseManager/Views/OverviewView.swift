@@ -4,7 +4,7 @@ import Foundation
 
 struct OverviewView: View {
     @EnvironmentObject var configurationManager: ConfigurationManager
-    @ObservedObject private var expenseService = ExpenseService.shared
+    @ObservedObject private var expenseService = CoreDataExpenseService.shared
     @State private var selectedPhotos: [PhotosPickerItem] = []
     @State private var isProcessingReceipts = false
     @State private var showingAlert = false
@@ -281,7 +281,7 @@ struct OverviewView: View {
             }
             Button("Delete", role: .destructive) {
                 if let expense = expenseToDelete {
-                    expenseService.deleteExpense(expense)
+                    try? expenseService.deleteExpense(expense)
                     expenseToDelete = nil
                 }
             }
@@ -1060,7 +1060,7 @@ enum ExpenseSortOption: String, CaseIterable {
 
 struct AllExpensesView: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject private var expenseService = ExpenseService.shared
+    @ObservedObject private var expenseService = CoreDataExpenseService.shared
     @State private var expenseToDelete: Expense?
     @State private var showingDeleteConfirmation = false
     @State private var searchText = ""
@@ -1172,7 +1172,7 @@ struct AllExpensesView: View {
             }
             Button("Delete", role: .destructive) {
                 if let expense = expenseToDelete {
-                    expenseService.deleteExpense(expense)
+                    try? expenseService.deleteExpense(expense)
                     expenseToDelete = nil
                 }
             }
