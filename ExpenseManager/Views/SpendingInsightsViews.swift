@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 struct SpendingInsightsView: View {
     @ObservedObject private var expenseService = CoreDataExpenseService.shared

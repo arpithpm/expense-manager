@@ -1,6 +1,7 @@
 import SwiftUI
 import PhotosUI
 import Foundation
+import CoreData
 
 struct OverviewView: View {
     @EnvironmentObject var configurationManager: ConfigurationManager
@@ -1070,15 +1071,25 @@ struct AllExpensesView: View {
     let isModal: Bool
     
     private var filteredExpenses: [Expense] {
-        let expenses = searchText.isEmpty ? expenseService.expenses : expenseService.expenses.filter { expense in
-            expense.merchant.localizedCaseInsensitiveContains(searchText) ||
-            expense.category.localizedCaseInsensitiveContains(searchText) ||
-            (expense.description?.localizedCaseInsensitiveContains(searchText) ?? false) ||
-            (expense.items?.contains { item in
-                item.name.localizedCaseInsensitiveContains(searchText) ||
-                (item.category?.localizedCaseInsensitiveContains(searchText) ?? false) ||
-                (item.description?.localizedCaseInsensitiveContains(searchText) ?? false)
-            } ?? false)
+        let expenses: [Expense]
+        
+        if searchText.isEmpty {
+            expenses = expenseService.expenses
+        } else {
+            expenses = expenseService.expenses.filter { expense in
+                let merchantMatch = expense.merchant.localizedCaseInsensitiveContains(searchText)
+                let categoryMatch = expense.category.localizedCaseInsensitiveContains(searchText)
+                let descriptionMatch = expense.description?.localizedCaseInsensitiveContains(searchText) ?? false
+                
+                let itemMatch = expense.items?.contains { item in
+                    let itemNameMatch = item.name.localizedCaseInsensitiveContains(searchText)
+                    let itemCategoryMatch = item.category?.localizedCaseInsensitiveContains(searchText) ?? false
+                    let itemDescriptionMatch = item.description?.localizedCaseInsensitiveContains(searchText) ?? false
+                    return itemNameMatch || itemCategoryMatch || itemDescriptionMatch
+                } ?? false
+                
+                return merchantMatch || categoryMatch || descriptionMatch || itemMatch
+            }
         }
         
         return expenses.sorted { expense1, expense2 in
@@ -1133,7 +1144,7 @@ struct AllExpensesView: View {
             .navigationTitle("All Expenses")
             .navigationBarTitleDisplayMode(.large)
             .searchable(text: $searchText, prompt: "Search expenses...")
-            .toolbar {
+            .toolbar(content: {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
                         showingSortOptions = true
@@ -1164,7 +1175,7 @@ struct AllExpensesView: View {
                         }
                     }
                 }
-            }
+            })
         }
         .alert("Delete Expense", isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) {
@@ -1262,13 +1273,13 @@ struct SortOptionsView: View {
             }
             .navigationTitle("Sort Expenses")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
+            .toolbar(content: {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") {
                         dismiss()
                     }
                 }
-            }
+            })
         }
     }
 }

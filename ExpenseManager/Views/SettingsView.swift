@@ -1,6 +1,7 @@
 import SwiftUI
 import Foundation
 import MessageUI
+import CoreData
 
 struct SettingsView: View {
     @EnvironmentObject var configurationManager: ConfigurationManager
