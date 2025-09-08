@@ -3,12 +3,11 @@ import PhotosUI
 import Foundation
 import CoreData
 
-// Type alias to ensure proper scope resolution
-typealias ExpenseService = CoreDataExpenseService
+// Use legacy ExpenseService as bridge to CoreDataExpenseService
 
 struct OverviewView: View {
     @EnvironmentObject var configurationManager: ConfigurationManager
-    @ObservedObject private var expenseService = ExpenseService.shared
+    @ObservedObject private var expenseService = ExpenseService.coreDataService
     @State private var selectedPhotos: [PhotosPickerItem] = []
     @State private var isProcessingReceipts = false
     @State private var showingAlert = false
@@ -1064,7 +1063,7 @@ enum ExpenseSortOption: String, CaseIterable {
 
 struct AllExpensesView: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject private var expenseService = ExpenseService.shared
+    @ObservedObject private var expenseService = ExpenseService.coreDataService
     @State private var expenseToDelete: Expense?
     @State private var showingDeleteConfirmation = false
     @State private var searchText = ""

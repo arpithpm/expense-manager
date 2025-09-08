@@ -3,8 +3,7 @@ import Foundation
 import MessageUI
 import CoreData
 
-// Type aliases to ensure proper scope resolution
-typealias ExpenseServiceType = CoreDataExpenseService
+// Use legacy ExpenseService as bridge to CoreDataExpenseService
 
 // Import ExportFormat from DataExporter for backward compatibility
 enum ExportFormat: String, CaseIterable {
@@ -25,7 +24,7 @@ enum ExportFormat: String, CaseIterable {
 
 struct SettingsView: View {
     @EnvironmentObject var configurationManager: ConfigurationManager
-    @ObservedObject private var expenseService = CoreDataExpenseService.shared
+    @ObservedObject private var expenseService = ExpenseService.coreDataService
     @State private var showingConfigurationSheet = false
     @State private var showingClearAlert = false
     @State private var showingSuccessAlert = false
@@ -965,7 +964,7 @@ struct DataResetView: View {
 // MARK: - Data Export View
 struct DataExportView: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject private var expenseService = ExpenseServiceType.shared
+    @ObservedObject private var expenseService = ExpenseService.coreDataService
     @State private var selectedFormat: ExportFormat = .csv
     @State private var selectedDateRange: DateRangeOption = .allTime
     @State private var customStartDate = Date()
