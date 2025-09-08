@@ -4,8 +4,8 @@ import Combine
 import PhotosUI
 import UIKit
 
-class CoreDataExpenseService: ObservableObject {
-    static let shared = CoreDataExpenseService()
+public class CoreDataExpenseService: ObservableObject {
+    public static let shared = CoreDataExpenseService()
     
     @Published var expenses: [Expense] = []
     @Published var isLoading = false
@@ -18,6 +18,9 @@ class CoreDataExpenseService: ObservableObject {
     private let firstLaunchKey = "HasLaunchedBefore"
     
     private init() {
+        // Perform migration from UserDefaults if needed
+        try? migrateFromUserDefaults()
+        
         loadExpenses()
         
         // Add sample data on first launch if no expenses exist
@@ -234,7 +237,7 @@ class CoreDataExpenseService: ObservableObject {
     
     // MARK: - Data Migration from UserDefaults
     
-    func migrateFromUserDefaults() throws {
+    public func migrateFromUserDefaults() throws {
         let userDefaults = UserDefaults.standard
         let expensesKey = "SavedExpenses"
         

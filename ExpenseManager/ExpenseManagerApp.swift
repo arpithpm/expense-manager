@@ -6,11 +6,6 @@ import CoreData
 struct ExpenseManagerApp: App {
     @StateObject private var configurationManager = ConfigurationManager()
     
-    init() {
-        // Perform migration from UserDefaults to Core Data on startup
-        performDataMigration()
-    }
-    
     var body: some Scene {
         WindowGroup {
             if configurationManager.isConfigured {
@@ -20,14 +15,6 @@ struct ExpenseManagerApp: App {
                 ConfigurationView()
                     .environmentObject(configurationManager)
             }
-        }
-    }
-    
-    private func performDataMigration() {
-        do {
-            try CoreDataExpenseService.shared.migrateFromUserDefaults()
-        } catch {
-            print("Migration failed: \(error)")
         }
     }
 }

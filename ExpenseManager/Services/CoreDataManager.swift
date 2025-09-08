@@ -1,8 +1,8 @@
 import Foundation
 import CoreData
 
-class CoreDataManager: ObservableObject {
-    static let shared = CoreDataManager()
+public class CoreDataManager: ObservableObject {
+    public static let shared = CoreDataManager()
     
     lazy var persistentContainer: NSPersistentContainer = {
         let model = createManagedObjectModel()
