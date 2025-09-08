@@ -1,8 +1,11 @@
 import SwiftUI
 import CoreData
 
+// Type alias to ensure proper scope resolution
+typealias ExpenseService = CoreDataExpenseService
+
 struct SpendingInsightsView: View {
-    @ObservedObject private var expenseService = CoreDataExpenseService.shared
+    @ObservedObject private var expenseService = ExpenseService.shared
     @ObservedObject private var insightsService = SpendingInsightsService.shared
     @State private var isAnalyzing = false
     @State private var showingAlert = false
