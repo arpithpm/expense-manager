@@ -5,24 +5,6 @@ import PhotosUI
 import UIKit
 import Security
 
-// MARK: - Export Format (for backward compatibility)
-
-enum ExportFormat: String, CaseIterable {
-    case csv = "CSV"
-    case json = "JSON"
-    
-    var fileExtension: String {
-        switch self {
-        case .csv: return "csv"
-        case .json: return "json"
-        }
-    }
-    
-    var displayName: String {
-        return rawValue
-    }
-}
-
 // MARK: - Error Handling
 
 enum ExpenseManagerError: LocalizedError, Equatable {
