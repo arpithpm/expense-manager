@@ -14,6 +14,13 @@ enum ExportFormat: String, CaseIterable {
     var displayName: String {
         return rawValue
     }
+    
+    var icon: String {
+        switch self {
+        case .csv: return "tablecells"
+        case .json: return "doc.text"
+        }
+    }
 }
 
 class DataExporter {
