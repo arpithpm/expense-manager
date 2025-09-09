@@ -7,7 +7,7 @@ import CoreData
 
 struct OverviewView: View {
     @EnvironmentObject var configurationManager: ConfigurationManager
-    @ObservedObject private var expenseService = ExpenseService.coreDataService
+    @ObservedObject private var expenseService = ExpenseService.shared
     @State private var selectedPhotos: [PhotosPickerItem] = []
     @State private var isProcessingReceipts = false
     @State private var showingAlert = false
@@ -1063,7 +1063,7 @@ enum ExpenseSortOption: String, CaseIterable {
 
 struct AllExpensesView: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject private var expenseService = ExpenseService.coreDataService
+    @ObservedObject private var expenseService = ExpenseService.shared
     @State private var expenseToDelete: Expense?
     @State private var showingDeleteConfirmation = false
     @State private var searchText = ""
@@ -1146,7 +1146,7 @@ struct AllExpensesView: View {
             .navigationTitle("All Expenses")
             .navigationBarTitleDisplayMode(.large)
             .searchable(text: $searchText, prompt: "Search expenses...")
-            .toolbar(content: {
+            .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
                         showingSortOptions = true
@@ -1177,7 +1177,7 @@ struct AllExpensesView: View {
                         }
                     }
                 }
-            })
+            }
         }
         .alert("Delete Expense", isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) {
@@ -1275,13 +1275,13 @@ struct SortOptionsView: View {
             }
             .navigationTitle("Sort Expenses")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar(content: {
+            .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") {
                         dismiss()
                     }
                 }
-            })
+            }
         }
     }
 }

@@ -17,24 +17,17 @@ class ExpenseService: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     
-    private let openAIService = OpenAIService.shared
-    private let userDefaults = UserDefaults.standard
-    private let expensesKey = "SavedExpenses"
-    private let lastBackupKey = "LastBackupDate"
-    private let firstLaunchKey = "HasLaunchedBefore"
-    
     private init() {
-        loadExpensesFromUserDefaults()
-        // Set initial backup timestamp if we have data but no backup date
-        if !expenses.isEmpty && userDefaults.object(forKey: lastBackupKey) == nil {
-            userDefaults.set(Date(), forKey: lastBackupKey)
-        }
-        
-        // Add sample data on first launch if no expenses exist
-        if expenses.isEmpty && !hasLaunchedBefore() {
-            addSampleExpenses()
-            markFirstLaunchComplete()
-        }
+        // Load data from CoreDataExpenseService and keep in sync
+        syncWithCoreDataService()
+    }
+    
+    private func syncWithCoreDataService() {
+        // Copy data from CoreDataExpenseService to maintain @Published functionality
+        let coreDataService = CoreDataExpenseService.shared
+        self.expenses = coreDataService.expenses
+        self.isLoading = coreDataService.isLoading
+        self.errorMessage = coreDataService.errorMessage
     }
     
     func processReceiptPhotos(_ photoItems: [PhotosPickerItem]) async -> Int {

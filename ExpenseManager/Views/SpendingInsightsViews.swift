@@ -4,7 +4,7 @@ import CoreData
 // Use legacy ExpenseService as bridge to CoreDataExpenseService
 
 struct SpendingInsightsView: View {
-    @ObservedObject private var expenseService = ExpenseService.coreDataService
+    @ObservedObject private var expenseService = ExpenseService.shared
     @ObservedObject private var insightsService = SpendingInsightsService.shared
     @State private var isAnalyzing = false
     @State private var showingAlert = false
