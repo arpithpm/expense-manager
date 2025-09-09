@@ -131,14 +131,38 @@ public class CoreDataExpenseService: ObservableObject {
             )
         }
         
+        // Validate extracted data before creating expense
+        let merchantValidation = InputValidator.validateMerchantName(extraction.merchant)
+        let sanitizedMerchant = merchantValidation.sanitizedValue ?? "Unknown Merchant"
+        
+        let categoryValidation = InputValidator.validateCategory(extraction.category)
+        let sanitizedCategory = categoryValidation.sanitizedValue ?? "Other"
+        
+        let amountValidation = InputValidator.validateAmount(String(extraction.amount))
+        guard amountValidation.isValid else {
+            throw ExpenseManagerError.invalidAmount
+        }
+        
+        var sanitizedDescription: String? = nil
+        if let desc = extraction.description {
+            let descriptionValidation = InputValidator.validateExpenseDescription(desc)
+            sanitizedDescription = descriptionValidation.sanitizedValue
+        }
+        
+        var sanitizedPaymentMethod: String? = nil
+        if let payment = extraction.paymentMethod {
+            let paymentValidation = InputValidator.validatePaymentMethod(payment)
+            sanitizedPaymentMethod = paymentValidation.sanitizedValue
+        }
+        
         return Expense(
             date: expenseDate,
-            merchant: extraction.merchant,
+            merchant: sanitizedMerchant,
             amount: extraction.amount,
             currency: extraction.currency,
-            category: extraction.category,
-            description: extraction.description,
-            paymentMethod: extraction.paymentMethod,
+            category: sanitizedCategory,
+            description: sanitizedDescription,
+            paymentMethod: sanitizedPaymentMethod,
             taxAmount: extraction.taxAmount,
             items: expenseItems,
             subtotal: extraction.subtotal,
@@ -165,8 +189,9 @@ public class CoreDataExpenseService: ObservableObject {
     }
     
     func addExpense(_ expense: Expense) throws -> Expense {
-        // Validate expense data
-        guard expense.amount > 0 else {
+        // Validate expense data using InputValidator
+        let amountValidation = InputValidator.validateAmount(String(expense.amount))
+        guard amountValidation.isValid else {
             throw ExpenseManagerError.invalidAmount
         }
         
@@ -174,8 +199,28 @@ public class CoreDataExpenseService: ObservableObject {
             throw ExpenseManagerError.invalidDate
         }
         
-        guard !expense.merchant.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        let merchantValidation = InputValidator.validateMerchantName(expense.merchant)
+        guard merchantValidation.isValid else {
             throw ExpenseManagerError.invalidExpenseData
+        }
+        
+        let categoryValidation = InputValidator.validateCategory(expense.category)
+        guard categoryValidation.isValid else {
+            throw ExpenseManagerError.invalidExpenseData
+        }
+        
+        if let description = expense.description {
+            let descriptionValidation = InputValidator.validateExpenseDescription(description)
+            guard descriptionValidation.isValid else {
+                throw ExpenseManagerError.invalidExpenseData
+            }
+        }
+        
+        if let paymentMethod = expense.paymentMethod {
+            let paymentValidation = InputValidator.validatePaymentMethod(paymentMethod)
+            guard paymentValidation.isValid else {
+                throw ExpenseManagerError.invalidExpenseData
+            }
         }
         
         let context = coreDataManager.viewContext
@@ -216,6 +261,40 @@ public class CoreDataExpenseService: ObservableObject {
     }
     
     func updateExpense(_ expense: Expense) throws {
+        // Validate expense data using InputValidator
+        let amountValidation = InputValidator.validateAmount(String(expense.amount))
+        guard amountValidation.isValid else {
+            throw ExpenseManagerError.invalidAmount
+        }
+        
+        guard expense.date <= Date() else {
+            throw ExpenseManagerError.invalidDate
+        }
+        
+        let merchantValidation = InputValidator.validateMerchantName(expense.merchant)
+        guard merchantValidation.isValid else {
+            throw ExpenseManagerError.invalidExpenseData
+        }
+        
+        let categoryValidation = InputValidator.validateCategory(expense.category)
+        guard categoryValidation.isValid else {
+            throw ExpenseManagerError.invalidExpenseData
+        }
+        
+        if let description = expense.description {
+            let descriptionValidation = InputValidator.validateExpenseDescription(description)
+            guard descriptionValidation.isValid else {
+                throw ExpenseManagerError.invalidExpenseData
+            }
+        }
+        
+        if let paymentMethod = expense.paymentMethod {
+            let paymentValidation = InputValidator.validatePaymentMethod(paymentMethod)
+            guard paymentValidation.isValid else {
+                throw ExpenseManagerError.invalidExpenseData
+            }
+        }
+        
         let context = coreDataManager.viewContext
         let request: NSFetchRequest<ExpenseEntity> = ExpenseEntity.fetchRequest()
         request.predicate = NSPredicate(format: "id == %@", expense.id as CVarArg)

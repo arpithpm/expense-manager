@@ -27,6 +27,13 @@ enum ExportFormat: String, CaseIterable {
         case .json: return "doc.text"
         }
     }
+    
+    var description: String {
+        switch self {
+        case .csv: return "Spreadsheet format compatible with Excel"
+        case .json: return "Structured data format for developers"
+        }
+    }
 }
 
 struct SettingsView: View {
@@ -496,6 +503,7 @@ struct ReconfigurationView: View {
     @State private var showingAlert = false
     @State private var alertMessage = ""
     @State private var isProcessing = false
+    @State private var validationError: String?
     
     var body: some View {
         NavigationView {
@@ -522,7 +530,7 @@ struct ReconfigurationView: View {
                             await saveConfiguration()
                         }
                     }
-                    .disabled(isFieldsEmpty || isProcessing || !isConnectionSuccessful)
+                    .disabled(isFieldsEmpty || isProcessing || !isConnectionSuccessful || validationError != nil)
                 }
             }
         }
@@ -550,6 +558,16 @@ struct ReconfigurationView: View {
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .autocapitalization(.none)
                         .autocorrectionDisabled()
+                        .onChange(of: openaiKey) { _, newValue in
+                            validateOpenAIKey(newValue)
+                        }
+                    
+                    if let error = validationError {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                            .padding(.top, 2)
+                    }
                     
                     Text("Required for AI-powered receipt processing")
                         .font(.caption)
@@ -564,7 +582,7 @@ struct ReconfigurationView: View {
                 }
             }
             .buttonStyle(.bordered)
-            .disabled(isFieldsEmpty || isProcessing)
+            .disabled(isFieldsEmpty || isProcessing || validationError != nil)
         }
     }
     
@@ -624,11 +642,74 @@ struct ReconfigurationView: View {
         openaiKey = configurationManager.getOpenAIKey() ?? ""
     }
     
+    private func validateOpenAIKey(_ key: String) {
+        let sanitized = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Check if empty
+        if sanitized.isEmpty {
+            validationError = "API key cannot be empty"
+            return
+        }
+        
+        // Check minimum length
+        if sanitized.count < 10 {
+            validationError = "API key appears to be too short"
+            return
+        }
+        
+        // Check maximum length
+        if sanitized.count > 200 {
+            validationError = "API key appears to be too long"
+            return
+        }
+        
+        // Check for valid OpenAI key format
+        if !sanitized.hasPrefix("sk-") {
+            validationError = "OpenAI API key should start with 'sk-'"
+            return
+        }
+        
+        // Check for only allowed characters
+        let allowedCharacterSet = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
+        if sanitized.rangeOfCharacter(from: allowedCharacterSet.inverted) != nil {
+            validationError = "API key contains invalid characters"
+            return
+        }
+        
+        // Valid
+        validationError = nil
+    }
+    
     private func testConnections() async {
         isProcessing = true
         
+        // Validate input before processing
+        let sanitizedKey = openaiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Validate key format
+        if sanitizedKey.isEmpty {
+            alertMessage = "API key cannot be empty"
+            showingAlert = true
+            isProcessing = false
+            return
+        }
+        
+        if sanitizedKey.count < 10 {
+            alertMessage = "API key appears to be too short"
+            showingAlert = true
+            isProcessing = false
+            return
+        }
+        
+        if !sanitizedKey.hasPrefix("sk-") {
+            alertMessage = "OpenAI API key should start with 'sk-'"
+            showingAlert = true
+            isProcessing = false
+            return
+        }
+        
         let success = await configurationManager.saveConfiguration(
-            openaiKey: openaiKey
+            openaiKey: sanitizedKey
         )
         
         if success {
@@ -644,8 +725,33 @@ struct ReconfigurationView: View {
     private func saveConfiguration() async {
         isProcessing = true
         
+        // Validate input before processing
+        let sanitizedKey = openaiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Validate key format
+        if sanitizedKey.isEmpty {
+            alertMessage = "API key cannot be empty"
+            showingAlert = true
+            isProcessing = false
+            return
+        }
+        
+        if sanitizedKey.count < 10 {
+            alertMessage = "API key appears to be too short"
+            showingAlert = true
+            isProcessing = false
+            return
+        }
+        
+        if !sanitizedKey.hasPrefix("sk-") {
+            alertMessage = "OpenAI API key should start with 'sk-'"
+            showingAlert = true
+            isProcessing = false
+            return
+        }
+        
         let success = await configurationManager.saveConfiguration(
-            openaiKey: openaiKey
+            openaiKey: sanitizedKey
         )
         
         if success {
