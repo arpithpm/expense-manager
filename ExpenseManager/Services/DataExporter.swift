@@ -111,7 +111,7 @@ class DataExporter {
         
         // Metadata
         exportData["exportDate"] = ISO8601DateFormatter().string(from: Date())
-        exportData["version"] = "2.1.0"
+        exportData["version"] = "2.1.1"
         exportData["totalExpenses"] = expenses.count
         exportData["totalAmount"] = expenses.reduce(0) { $0 + $1.amount }
         exportData["includeItems"] = includeItems

@@ -39,8 +39,6 @@ public class CoreDataExpenseService: ObservableObject {
             do {
                 // Debug PhotosPickerItem properties
                 let assetIdentifier = photoItem.itemIdentifier
-                print("Captured asset identifier during processing: \(assetIdentifier ?? "nil")")
-                print("PhotosPickerItem supportedContentTypes: \(photoItem.supportedContentTypes)")
                 
                 if let imageData = try await loadImageData(from: photoItem),
                    let image = UIImage(data: imageData) {
@@ -54,7 +52,7 @@ public class CoreDataExpenseService: ObservableObject {
                     processedCount += 1
                 }
             } catch {
-                print("Failed to process photo: \(error)")
+                // Handle photo processing error silently in production
                 // Provide more specific error messages based on error type
                 if let openAIError = error as? OpenAIError {
                     switch openAIError {
@@ -109,14 +107,12 @@ public class CoreDataExpenseService: ObservableObject {
         
         // If the extracted date is 2023 but we're in 2025, likely a parsing error
         if extractedYear == 2023 && currentYear >= 2025 {
-            print("Warning: Date parsed as 2023, correcting to 2025. Original: \(extraction.date)")
             let components = calendar.dateComponents([.month, .day], from: expenseDate)
             var correctedComponents = DateComponents()
             correctedComponents.year = 2025
             correctedComponents.month = components.month
             correctedComponents.day = components.day
             expenseDate = calendar.date(from: correctedComponents) ?? expenseDate
-            print("Corrected date: \(expenseDate)")
         }
         
         // Convert OpenAI items to ExpenseItems
@@ -184,7 +180,7 @@ public class CoreDataExpenseService: ObservableObject {
             expenses = entities.map { $0.toExpense() }
         } catch {
             errorMessage = "Failed to load expenses: \(error.localizedDescription)"
-            print("Core Data fetch error: \(error)")
+            // Handle Core Data fetch error silently in production
         }
     }
     
@@ -325,7 +321,7 @@ public class CoreDataExpenseService: ObservableObject {
             return // No data to migrate
         }
         
-        print("Migrating \(userDefaultsExpenses.count) expenses from UserDefaults to Core Data")
+        // Migrating expenses from UserDefaults to Core Data
         
         for expense in userDefaultsExpenses {
             let context = coreDataManager.viewContext
@@ -339,7 +335,7 @@ public class CoreDataExpenseService: ObservableObject {
             
             // Remove data from UserDefaults after successful migration
             userDefaults.removeObject(forKey: expensesKey)
-            print("Successfully migrated expenses and removed UserDefaults data")
+            // Successfully migrated expenses and removed UserDefaults data
         } catch {
             throw ExpenseManagerError.persistenceError(underlying: error)
         }
@@ -507,7 +503,7 @@ public class CoreDataExpenseService: ObservableObject {
             try context.save()
             loadExpenses() // Refresh the expenses array
         } catch {
-            print("Failed to clear demo data: \(error)")
+            // Failed to clear demo data
         }
     }
     
@@ -624,6 +620,6 @@ public class CoreDataExpenseService: ObservableObject {
             try? addExpense(expense)
         }
         
-        print("Added \(sampleExpenses.count) sample expenses with item details to Core Data for first launch")
+        // Added sample expenses for first launch
     }
 }

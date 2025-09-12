@@ -1,259 +1,181 @@
-# 🧾 ReceiptRadar - AI-Powered Expense Manager
+# Receipt Radar 📱
 
-**Transform your receipts into detailed financial insights with AI-powered item-level tracking.**
+**AI-Powered Expense Management Made Simple**
 
-[![iOS](https://img.shields.io/badge/iOS-16.0+-blue.svg)](https://developer.apple.com/ios/)
-[![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org/)
-[![SwiftUI](https://img.shields.io/badge/SwiftUI-5.0+-green.svg)](https://developer.apple.com/xcode/swiftui/)
-[![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o-purple.svg)](https://openai.com/)
+Receipt Radar is a sophisticated iOS expense management app that uses cutting-edge AI technology to automatically extract expense data from receipt photos, making expense tracking effortless and accurate.
+
+![Version](https://img.shields.io/badge/version-2.1.1-blue.svg)
+![iOS](https://img.shields.io/badge/iOS-15.0%2B-green.svg)
+![Swift](https://img.shields.io/badge/Swift-5.0-orange.svg)
+![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)
 
 ## ✨ Features
 
-### 🔍 **AI-Powered Receipt Processing**
-- **Advanced OCR**: GPT-4o Vision API for accurate text extraction
-- **Intelligent Parsing**: Extracts both basic expense data and detailed item information
-- **Multi-format Support**: Handles various receipt formats and layouts
-- **Error Recovery**: Graceful handling of unclear or damaged receipts
+### 🤖 AI-Powered Receipt Processing
+- **Smart OCR Technology**: Advanced AI extracts merchant names, amounts, dates, and itemized purchases from receipt photos
+- **Multiple Receipt Support**: Process multiple receipts simultaneously
+- **Auto-categorization**: Intelligent expense categorization based on merchant and purchase patterns
 
-### 📊 **Item-Level Tracking**
-- **Individual Items**: Captures name, quantity, unit price, and total for each item
-- **Smart Categories**: Auto-categorizes items (Food, Beverage, Electronics, etc.)
-- **Detailed Analysis**: Track spending patterns at the most granular level
-- **Price Monitoring**: Monitor item price changes over time
+### 📊 Comprehensive Expense Management
+- **Real-time Tracking**: Monitor spending across multiple categories
+- **Detailed Analytics**: Visual spending insights and monthly breakdowns
+- **Export Capabilities**: Export data in CSV or JSON formats
+- **Cloud Backup**: Secure data storage with seamless device synchronization
 
-### 💰 **Multi-Currency Support**
-- **Global Ready**: Supports USD, EUR, GBP, and other major currencies
-- **Automatic Detection**: Recognizes currency from receipts
-- **Proper Formatting**: Displays correct currency symbols (€, $, £)
-- **Mixed Currency**: Handle expenses in different currencies
+### 🎨 Modern User Experience
+- **SwiftUI Interface**: Native iOS design with smooth animations
+- **Dark Mode Support**: Adaptive interface for all lighting conditions
+- **Accessibility**: Full VoiceOver and accessibility feature support
+- **iPad Compatibility**: Optimized for both iPhone and iPad devices
 
-### 📈 **Financial Breakdown**
-- **Comprehensive Tracking**: Separates subtotal, taxes, tips, fees, discounts
-- **Transparency**: Clear visibility into all charges
-- **Validation**: Ensures financial breakdowns are accurate
-- **Business Ready**: Detailed itemization for tax purposes
+### 🔒 Privacy & Security
+- **Local Data Storage**: All expense data stored securely on your device
+- **Input Validation**: Comprehensive data sanitization and security measures
+- **No Data Collection**: Your financial information never leaves your device
+- **Secure AI Processing**: Receipt processing through encrypted OpenAI API calls
 
-### 🎨 **Enhanced User Experience**
-- **Expandable Views**: Tap expense rows to see detailed item breakdowns
-- **Visual Indicators**: Item count badges and category tags
-- **Advanced Search**: Search by item names, categories, descriptions
-- **Privacy First**: All data stored locally on device
-
-## 🚀 Quick Start
+## 🚀 Getting Started
 
 ### Prerequisites
-- iOS 16.0+ device or simulator
-- Xcode 15.0+
-- OpenAI API key with GPT-4o access
+- iOS 15.0 or later
+- iPhone or iPad
+- OpenAI API key (for AI-powered receipt processing)
 
 ### Installation
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/arpithpm/expense-manager.git
-   cd expense-manager
-   ```
+1. Clone this repository
+2. Open `ExpenseManager.xcodeproj` in Xcode
+3. Build and run on your iOS device or simulator
 
-2. **Open in Xcode**
-   ```bash
-   open ExpenseManager.xcodeproj
-   ```
+### Configuration
+1. Launch the app
+2. Navigate to Settings → Configuration
+3. Enter your OpenAI API key
+4. Test the connection to ensure proper setup
 
-3. **Configure API Key**
-   - Run the app
-   - Go to Settings tab
-   - Enter your OpenAI API key
-   - Test the connection
+## 📱 How to Use
 
-4. **Start Scanning**
-   - Tap "Select Receipt Photos" on Overview tab
-   - Choose receipt images from your photo library
-   - Watch as AI extracts detailed item information
+### Processing Receipts
+1. **Capture**: Tap the camera icon to photograph your receipts
+2. **Process**: The AI automatically extracts expense details
+3. **Review**: Verify the extracted information and make any necessary edits
+4. **Save**: Add the expense to your tracking system
 
-## 📱 Screenshots
+### Managing Expenses
+- **View All Expenses**: Browse your complete expense history
+- **Search & Filter**: Find specific expenses by merchant, category, or date
+- **Edit Details**: Modify any expense information as needed
+- **Delete Expenses**: Remove unwanted or duplicate entries
 
-### Main Interface
-- **Overview Dashboard**: Monthly totals and recent expenses
-- **Receipt Scanner**: AI-powered photo processing
-- **Detailed Views**: Expandable item-level breakdowns
-
-### Item-Level Details
-- **Individual Items**: See every item purchased with quantities and prices
-- **Category Breakdown**: Items automatically categorized for analysis
-- **Financial Summary**: Clear separation of charges, taxes, tips, fees
+### Analytics & Insights
+- **Spending Overview**: Visual breakdown of expenses by category
+- **Monthly Trends**: Track spending patterns over time
+- **Export Data**: Generate reports in CSV or JSON format
+- **Budget Tracking**: Monitor spending against your financial goals
 
 ## 🛠 Technical Architecture
 
 ### Core Technologies
-- **SwiftUI**: Modern, declarative UI framework
-- **OpenAI GPT-4o**: Advanced vision model for receipt processing
-- **UserDefaults**: Local data persistence
-- **iOS Keychain**: Secure credential storage
-
-### Data Flow
-```
-Receipt Photo → AI Processing → Item Extraction → Local Storage → Enhanced UI
-     ↓              ↓               ↓               ↓            ↓
-PhotosPicker → GPT-4o Vision → ExpenseItem[] → UserDefaults → Currency Format
-Multi-select → Error Recovery → Categories → Backup Ready → Analytics
-```
+- **SwiftUI**: Modern declarative UI framework
+- **Core Data**: Local data persistence and management
+- **PhotosUI**: Native photo selection and processing
+- **OpenAI GPT-4**: Advanced AI for receipt text extraction
+- **Combine**: Reactive programming for data flow management
 
 ### Key Components
-- **ConfigurationManager**: API credential management
-- **ExpenseService**: Business logic and data management
-- **OpenAIService**: AI processing with error recovery
-- **Currency Extensions**: Multi-currency formatting
-- **Enhanced UI**: Expandable item views
+- **CoreDataExpenseService**: Central expense management and persistence
+- **OpenAIService**: AI-powered receipt processing
+- **InputValidator**: Comprehensive input validation and sanitization
+- **DataExporter**: Multi-format data export capabilities
+- **ConfigurationManager**: Secure API key and settings management
 
-## 💾 Data Models
+### Data Security
+- **Input Sanitization**: All user inputs validated and sanitized
+- **Secure Storage**: Keychain integration for sensitive data
+- **Privacy Controls**: Full user control over data sharing and exports
+- **Encryption**: Secure API communications with OpenAI services
 
-### Expense Structure
-```swift
-struct Expense {
-    let merchant: String
-    let amount: Double
-    let currency: String
-    let items: [ExpenseItem]?       // Individual items
-    let subtotal: Double?           // Before taxes/tips
-    let taxAmount: Double?          // Tax amount
-    let tip: Double?               // Tip amount
-    let fees: Double?              // Service fees
-    // ... more fields
-}
-```
+## 📋 System Requirements
 
-### Item Structure
-```swift
-struct ExpenseItem {
-    let name: String               // Item name
-    let quantity: Double?          // Number of items
-    let unitPrice: Double?         // Price per unit
-    let totalPrice: Double         // Total for this item
-    let category: String?          // Item category
-    let description: String?       // Additional details
-}
-```
+- **iOS Version**: iOS 15.0 or later
+- **Device**: iPhone 8 or newer, iPad (6th generation) or newer
+- **Storage**: Minimum 50 MB available space
+- **Network**: Internet connection required for AI processing
+- **Camera**: Device camera for receipt photo capture
 
-## 🧠 AI Processing
+## 🔧 Configuration
 
-### Enhanced Extraction
-- **Comprehensive Prompts**: Detailed instructions for item extraction
-- **Financial Validation**: Ensures extracted data adds up correctly
-- **Error Recovery**: Handles truncated responses and parsing failures
-- **Quality Assurance**: Confidence scoring for accuracy assessment
+### OpenAI Integration
+Receipt Radar uses OpenAI's GPT-4 model for intelligent receipt processing. To configure:
 
-### Supported Data
-- **Basic Info**: Date, merchant, amount, currency, category
-- **Items**: Individual items with quantities and prices
-- **Breakdown**: Subtotal, taxes, tips, fees, discounts
-- **Metadata**: Payment method, confidence scores
+1. Obtain an API key from [OpenAI](https://platform.openai.com/api-keys)
+2. Open Receipt Radar → Settings → Configuration
+3. Enter your API key and test the connection
+4. Enjoy automated expense extraction!
 
-## 🌍 Multi-Currency Features
+### Privacy Settings
+- All data processing happens locally on your device
+- OpenAI API calls are encrypted and temporary
+- No personal data is stored on external servers
+- You maintain full control over your financial information
 
-### Automatic Currency Handling
-- **Smart Detection**: AI recognizes currency from receipt text
-- **Proper Display**: Uses iOS NumberFormatter for correct symbols
-- **Mixed Support**: Handle multiple currencies in one app
-- **Primary Logic**: Determines main currency for summaries
+## 📊 Export Formats
 
-### Supported Currencies
-- USD ($), EUR (€), GBP (£), CAD, AUD, JPY, and more
-- Automatic symbol mapping and formatting
-- Locale-aware display following iOS standards
+### CSV Export
+- Compatible with Excel and Google Sheets
+- Includes all expense details and categories
+- Perfect for accounting software integration
 
-## 📊 Analytics & Insights
+### JSON Export
+- Structured data format for developers
+- Complete metadata and categorization
+- Ideal for custom analysis and integration
 
-### Item-Level Analysis
-- **Top Items**: Most frequently purchased items
-- **Category Spending**: Breakdown by item categories
-- **Price Tracking**: Monitor price changes over time
-- **Merchant Comparison**: Compare prices across stores
+## 🔄 Data Migration
 
-### Available Methods
-```swift
-getTopItems(limit: 10)              // Most purchased items
-getSpendingByItemCategory()         // Category breakdown
-getAverageItemPrice(for: "Coffee")  // Price tracking
-getItemFrequency()                  // Purchase frequency
-```
-
-## 🔐 Privacy & Security
-
-### Data Protection
-- **Local Storage**: All data stays on your device
-- **No Cloud Dependency**: No external servers required
-- **Keychain Security**: API credentials stored securely
-- **Photo Privacy**: Images processed but not stored
-
-### User Control
-- **Data Ownership**: Complete control over your financial data
-- **Easy Export**: Data stored in standard JSON format
-- **Reset Option**: Clear all data when needed
-- **No Tracking**: No analytics or user tracking
-
-## 🛠 Development
-
-### Project Structure
-```
-ExpenseManager/
-├── ExpenseManagerApp.swift         # App entry point
-├── ExpenseManagerComplete.swift    # Core business logic
-├── Views/
-│   ├── OverviewView.swift         # Main dashboard
-│   ├── ConfigurationView.swift    # Settings
-│   └── SettingsView.swift         # App settings
-└── Assets.xcassets/               # App icons and images
-```
-
-### Key Features Implementation
-- **Item Tracking**: Comprehensive ExpenseItem model
-- **Currency Support**: NumberFormatter-based formatting
-- **Error Handling**: Robust recovery mechanisms
-- **UI Enhancement**: Expandable views with detailed breakdowns
+Receipt Radar automatically handles data migration between versions:
+- **Seamless Upgrades**: Automatic migration from UserDefaults to Core Data
+- **Backup Preservation**: Your data is safely preserved during updates
+- **Compatibility**: Forward and backward compatibility maintained
 
 ## 🤝 Contributing
 
-### Getting Started
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+We welcome contributions to Receipt Radar! Please feel free to submit pull requests, report issues, or suggest new features.
 
-### Guidelines
-- Follow Swift coding conventions
-- Maintain comprehensive documentation
-- Add tests for new features
-- Ensure backwards compatibility
+### Development Setup
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
-
-- **OpenAI** for the powerful GPT-4o Vision API
-- **Apple** for SwiftUI and iOS development tools
-- **Community** for feedback and feature suggestions
-
 ## 📞 Support
 
-### Documentation
-- [Complete Documentation](DOCUMENTATION.md) - Comprehensive technical guide
-- [Implementation Summary](IMPLEMENTATION_SUMMARY.md) - Development overview
-- [Enhanced Documentation](DOCUMENTATION_ENHANCED.md) - Feature-specific guide
+For support, feature requests, or bug reports:
+- **GitHub Issues**: [Create an issue](https://github.com/yourusername/receipt-radar/issues)
+- **Email**: support@receiptradar.app
+- **Documentation**: Check our [Wiki](https://github.com/yourusername/receipt-radar/wiki)
 
-### Issues
-- Report bugs via GitHub Issues
-- Feature requests welcome
-- Check existing issues before creating new ones
+## 🙏 Acknowledgments
 
-### API Requirements
-- OpenAI API key with GPT-4o vision access
-- Sufficient API credits for image processing
-- Stable internet connection for processing
+- OpenAI for providing the GPT-4 API for receipt processing
+- Apple for the excellent SwiftUI and Core Data frameworks
+- The iOS development community for inspiration and support
+
+## 🗺 Roadmap
+
+### Upcoming Features
+- **Multiple Currencies**: Support for international expense tracking
+- **Team Collaboration**: Shared expense management for businesses
+- **Receipt Templates**: Custom receipt processing for specific merchants
+- **Budget Alerts**: Smart notifications for spending limits
+- **Siri Integration**: Voice-controlled expense entry
 
 ---
 
-**ReceiptRadar - Transforming receipt photos into detailed financial insights since 2025**
+**Receipt Radar** - Making expense management intelligent, secure, and effortless.
 
-*Built with ❤️ using SwiftUI and AI*
+*Built with ❤️ for iOS*

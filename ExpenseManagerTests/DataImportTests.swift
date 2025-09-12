@@ -481,7 +481,7 @@ final class DataImportTests: XCTestCase {
         let jsonString = """
         {
             "exportDate": "2025-01-01T12:00:00Z",
-            "version": "2.1.0",
+            "version": "2.1.1",
             "totalExpenses": 2,
             "totalAmount": 68.17,
             "includeItems": true,

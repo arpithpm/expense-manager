@@ -189,7 +189,7 @@ final class DataExportTests: XCTestCase {
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         
         // Then
-        XCTAssertEqual(json?["version"] as? String, "2.1.0")
+        XCTAssertEqual(json?["version"] as? String, "2.1.1")
         XCTAssertEqual(json?["includeItems"] as? Bool, true)
         XCTAssertEqual(json?["includeFinancialBreakdown"] as? Bool, true)
         

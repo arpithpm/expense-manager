@@ -2850,7 +2850,7 @@ class DataExporter {
         
         // Metadata
         exportData["exportDate"] = ISO8601DateFormatter().string(from: Date())
-        exportData["version"] = "2.1.0"
+        exportData["version"] = "2.1.1"
         exportData["totalExpenses"] = expenses.count
         exportData["totalAmount"] = expenses.reduce(0) { $0 + $1.amount }
         exportData["includeItems"] = includeItems
@@ -3153,7 +3153,7 @@ class DataExporter {
         // Create sample data structure
         let sampleData: [String: Any] = [
             "exportDate": ISO8601DateFormatter().string(from: Date()),
-            "version": "2.1.0",
+            "version": "2.1.1",
             "totalExpenses": 2,
             "totalAmount": 68.17,
             "includeItems": true,
