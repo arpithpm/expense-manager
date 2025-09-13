@@ -675,6 +675,9 @@ struct OverviewView: View {
         
         if processedCount > 0 {
             alertMessage = "Successfully processed \(processedCount) receipt\(processedCount == 1 ? "" : "s") and added to your expenses."
+            // Add haptic feedback for successful processing
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
         } else {
             alertMessage = "Failed to process receipts. Please check your API credentials and try again."
         }

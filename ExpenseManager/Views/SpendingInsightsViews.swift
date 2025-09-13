@@ -220,6 +220,9 @@ struct SpendingInsightsView: View {
             } else {
                 alertMessage = "Analysis complete! Your spending looks efficient, but I found some interesting patterns."
             }
+            // Add haptic feedback for successful analysis
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
             showingAlert = true
         } catch {
             alertMessage = "Analysis failed: \(error.localizedDescription)"
