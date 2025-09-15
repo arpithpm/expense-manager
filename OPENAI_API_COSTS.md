@@ -16,10 +16,12 @@ This document contains information about OpenAI model costs for receipt processi
 
 ## 💡 **Current Implementation**
 
-The app uses **GPT-4o mini** for optimal balance of cost and accuracy:
-- **Per Receipt Cost**: ~$0.0003 (extremely low)
-- **Quality**: Excellent for receipt text and image processing  
+The app uses **GPT-4o** for optimal accuracy with multi-currency and international receipt support:
+- **Per Receipt Cost**: ~$0.001-0.002 (still very low for high accuracy)
+- **Quality**: Excellent for complex receipt text, multi-currency detection, and international formats
+- **Multi-Currency Support**: Superior recognition of 50+ global currencies and regional formats
 - **Speed**: Fast processing with 128K context window
+- **Enhanced Features**: Better handling of non-English text, regional date formats, and complex receipts
 
 ## 🔧 **User Requirements**
 

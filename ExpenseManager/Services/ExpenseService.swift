@@ -91,25 +91,29 @@ class ExpenseService: ObservableObject {
     }
     
     private func createExpenseFromExtraction(_ extraction: OpenAIExpenseExtraction) throws -> Expense {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        var expenseDate = dateFormatter.date(from: extraction.date) ?? Date()
-        
-        // Validate and fix date if it's incorrectly parsed as 2023 instead of 2025
+        var expenseDate = parseDateFromExtraction(extraction.date)
+
+        // Validate and fix date if it's incorrectly parsed as 2023 instead of current year
         let calendar = Calendar.current
         let currentYear = calendar.component(.year, from: Date())
         let extractedYear = calendar.component(.year, from: expenseDate)
-        
-        // If the extracted date is 2023 but we're in 2025, likely a parsing error
-        if extractedYear == 2023 && currentYear >= 2025 {
-            print("Warning: Date parsed as 2023, correcting to 2025. Original: \(extraction.date)")
+
+        // If the extracted date is from past years but we're in a later year, likely a parsing error
+        if extractedYear < currentYear - 1 {
+            print("Warning: Date parsed as \(extractedYear), correcting to \(currentYear). Original: \(extraction.date)")
             let components = calendar.dateComponents([.month, .day], from: expenseDate)
             var correctedComponents = DateComponents()
-            correctedComponents.year = 2025
+            correctedComponents.year = currentYear
             correctedComponents.month = components.month
             correctedComponents.day = components.day
             expenseDate = calendar.date(from: correctedComponents) ?? expenseDate
             print("Corrected date: \(expenseDate)")
+        }
+
+        // Validate currency is supported
+        let validatedCurrency = CurrencyHelper.isSupported(extraction.currency) ? extraction.currency : "USD"
+        if validatedCurrency != extraction.currency {
+            print("Warning: Unsupported currency '\(extraction.currency)', defaulting to USD")
         }
         
         // Convert OpenAI items to ExpenseItems
@@ -128,7 +132,7 @@ class ExpenseService: ObservableObject {
             date: expenseDate,
             merchant: extraction.merchant,
             amount: extraction.amount,
-            currency: extraction.currency,
+            currency: validatedCurrency,
             category: extraction.category,
             description: extraction.description,
             paymentMethod: extraction.paymentMethod,
@@ -141,7 +145,87 @@ class ExpenseService: ObservableObject {
             itemsTotal: extraction.itemsTotal
         )
     }
-    
+
+    private func parseDateFromExtraction(_ dateString: String) -> Date {
+        let dateFormatters = [
+            // ISO 8601 formats
+            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+            "yyyy-MM-dd'T'HH:mm:ssZ",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd",
+
+            // Indian formats
+            "dd/MM/yyyy",
+            "dd-MM-yyyy",
+            "dd.MM.yyyy",
+            "dd/MM/yy",
+            "dd-MM-yy",
+            "dd.MM.yy",
+
+            // US formats
+            "MM/dd/yyyy",
+            "MM-dd-yyyy",
+            "MM.dd.yyyy",
+            "MM/dd/yy",
+            "MM-dd-yy",
+            "MM.dd.yy",
+
+            // European formats
+            "dd.MM.yyyy",
+            "dd/MM/yyyy",
+            "dd-MM-yyyy",
+            "dd.MM.yy",
+            "dd/MM/yy",
+            "dd-MM-yy",
+
+            // Alternative formats
+            "yyyy/MM/dd",
+            "yyyy.MM.dd",
+            "dd MMM yyyy",
+            "MMM dd, yyyy",
+            "dd MMMM yyyy",
+            "MMMM dd, yyyy"
+        ]
+
+        let calendar = Calendar.current
+        let currentYear = calendar.component(.year, from: Date())
+
+        for format in dateFormatters {
+            let formatter = DateFormatter()
+            formatter.dateFormat = format
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+
+            if let date = formatter.date(from: dateString) {
+                // Handle 2-digit year interpretation
+                let year = calendar.component(.year, from: date)
+                if year < 100 {
+                    // Convert 2-digit year to 4-digit year
+                    let adjustedYear = year + 2000
+                    if adjustedYear > currentYear + 10 {
+                        // If the year is too far in the future, assume it's from the previous century
+                        let components = calendar.dateComponents([.month, .day], from: date)
+                        var newComponents = DateComponents()
+                        newComponents.year = adjustedYear - 100
+                        newComponents.month = components.month
+                        newComponents.day = components.day
+                        return calendar.date(from: newComponents) ?? date
+                    } else {
+                        let components = calendar.dateComponents([.month, .day], from: date)
+                        var newComponents = DateComponents()
+                        newComponents.year = adjustedYear
+                        newComponents.month = components.month
+                        newComponents.day = components.day
+                        return calendar.date(from: newComponents) ?? date
+                    }
+                }
+                return date
+            }
+        }
+
+        print("Warning: Could not parse date '\(dateString)', using current date")
+        return Date()
+    }
+
     func fetchRecentExpenses(limit: Int = 10) async throws -> [Expense] {
         isLoading = true
         errorMessage = nil

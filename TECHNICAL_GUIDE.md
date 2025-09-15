@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide provides detailed technical information about the implementation of item-level expense tracking with multi-currency support in ReceiptRadar.
+This guide provides detailed technical information about the implementation of item-level expense tracking with comprehensive multi-currency support (50+ currencies) in ReceiptRadar.
 
 ## Architecture Changes
 
@@ -141,9 +141,19 @@ private func parseExpenseExtraction(from content: String) throws -> OpenAIExpens
 }
 ```
 
-### Currency System Implementation
+### Enhanced Multi-Currency System Implementation
 
-#### Currency Formatting Extension
+#### Comprehensive Currency Support
+ReceiptRadar now supports 50+ global currencies with intelligent recognition and proper locale formatting.
+
+**Supported Currency Regions:**
+- **Americas**: USD, CAD, MXN, BRL, ARS, CLP, COP, PEN, UYU
+- **Europe**: EUR, GBP, CHF, SEK, NOK, DKK, PLN, CZK, HUF, RON, BGN, HRK, RSD, TRY
+- **Asia-Pacific**: INR, JPY, CNY, SGD, HKD, AUD, NZD, MYR, THB, IDR, PHP, VND, KRW, TWD
+- **Middle East & Africa**: AED, SAR, QAR, KWD, BHD, OMR, ILS, EGP, ZAR, NGN, KES, GHS
+- **Others**: RUB, UAH, KZT, UZS
+
+#### Advanced Currency Formatting Extension
 
 ```swift
 extension Double {
@@ -151,11 +161,80 @@ extension Double {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
         formatter.currencyCode = currency
-        formatter.maximumFractionDigits = 2
-        formatter.minimumFractionDigits = 2
-        
-        return formatter.string(from: NSNumber(value: self)) ?? 
-               "\(currency) \(String(format: "%.2f", self))"
+
+        // Set locale based on currency for proper formatting
+        switch currency {
+        case "USD", "CAD", "AUD", "NZD", "MXN":
+            formatter.locale = Locale(identifier: "en_US")
+        case "EUR":
+            formatter.locale = Locale(identifier: "en_DE")
+        case "GBP":
+            formatter.locale = Locale(identifier: "en_GB")
+        case "INR":
+            formatter.locale = Locale(identifier: "en_IN")
+        case "JPY":
+            formatter.locale = Locale(identifier: "ja_JP")
+        case "CNY":
+            formatter.locale = Locale(identifier: "zh_CN")
+        // ... 40+ more currency locales
+        default:
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+        }
+
+        // Fallback to symbol if locale formatting fails
+        if let formatted = formatter.string(from: NSNumber(value: self)) {
+            return formatted
+        } else {
+            let symbol = CurrencyHelper.symbol(for: currency)
+            return "\(symbol)\(String(format: "%.2f", self))"
+        }
+    }
+}
+```
+
+#### Currency Helper Implementation
+
+```swift
+struct CurrencyHelper {
+    static func symbol(for currencyCode: String) -> String {
+        switch currencyCode.uppercased() {
+        case "USD", "CAD", "AUD", "NZD", "MXN", "ARS", "CLP", "COP", "UYU", "SGD", "HKD", "TWD":
+            return "$"
+        case "EUR":
+            return "€"
+        case "GBP":
+            return "£"
+        case "INR":
+            return "₹"
+        case "JPY", "CNY":
+            return "¥"
+        case "CHF":
+            return "CHF"
+        case "SEK", "NOK", "DKK":
+            return "kr"
+        case "PLN":
+            return "zł"
+        case "TRY":
+            return "₺"
+        case "RUB":
+            return "₽"
+        case "NGN":
+            return "₦"
+        // ... 30+ more currency symbols
+        default:
+            return currencyCode
+        }
+    }
+
+    static func isSupported(_ currencyCode: String) -> Bool {
+        let supportedCurrencies = [
+            "USD", "EUR", "GBP", "INR", "JPY", "CNY", "CAD", "AUD", "CHF", "SEK", "NOK", "DKK",
+            "PLN", "CZK", "HUF", "RON", "BGN", "HRK", "RSD", "TRY", "ILS", "AED", "SAR", "QAR",
+            "KWD", "BHD", "OMR", "EGP", "ZAR", "NGN", "KES", "GHS", "MXN", "BRL", "ARS", "CLP",
+            "COP", "PEN", "UYU", "SGD", "MYR", "THB", "IDR", "PHP", "VND", "KRW", "TWD", "HKD",
+            "NZD", "RUB", "UAH", "KZT", "UZS"
+        ]
+        return supportedCurrencies.contains(currencyCode.uppercased())
     }
 }
 ```

@@ -4,6 +4,49 @@ All notable changes to ReceiptRadar will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2025-09-15
+
+### 🌍 Global Multi-Currency Support
+
+#### Comprehensive Currency Recognition
+- **50+ Global Currencies**: Added support for major world currencies including INR, EUR, GBP, JPY, CNY, and many more
+- **Intelligent Symbol Detection**: AI recognizes currency symbols (₹, €, £, ¥, $, ₦, ₺, etc.) and text patterns
+- **Regional Currency Mapping**: Covers Americas, Europe, Asia-Pacific, Middle East, Africa, and more
+
+#### Advanced Locale Support
+- **Locale-Aware Formatting**: Proper currency display using region-specific number formatting
+- **Currency Helper System**: Comprehensive symbol mapping and validation for all supported currencies
+- **Fallback Mechanisms**: Graceful handling when currency cannot be determined
+
+#### Enhanced Regional Recognition
+- **Date Format Intelligence**: Supports multiple date formats (DD/MM/YYYY, MM/DD/YYYY, DD.MM.YYYY)
+- **Tax Label Recognition**: Recognizes regional tax formats (GST for India, VAT for Europe, Sales Tax for US)
+- **Smart Date Parsing**: Intelligent 2-digit year interpretation (25 → 2025, not 1925)
+- **Regional Merchant Patterns**: Better recognition of international merchant names
+
+#### Global Currency Features
+- **Mixed Currency Tracking**: Handle multiple currencies within the same app
+- **Primary Currency Logic**: Smart detection of user's most common currency
+- **Currency Validation**: Ensures only supported currencies are processed
+- **Proper Number Formatting**: Respects regional decimal and thousands separators
+
+### 🔧 Technical Improvements
+
+#### Enhanced AI Processing
+- **Expanded Currency Recognition**: Updated OpenAI prompt with comprehensive currency symbols and patterns
+- **Regional Format Handling**: Enhanced date parsing with multiple format support
+- **Improved Error Handling**: Better validation and fallback for unsupported currencies
+
+#### Data Model Enhancements
+- **CurrencyHelper Class**: New utility class for currency symbol mapping and validation
+- **Enhanced Formatting**: Locale-aware currency formatting throughout the app
+- **Validation Layer**: Currency validation during expense creation
+
+### 📚 Documentation Updates
+- **Updated README**: Comprehensive multi-currency feature documentation
+- **Enhanced Technical Guide**: Detailed implementation information for currency support
+- **Updated Documentation**: Complete currency support and regional feature details
+
 ## [2.1.0] - 2025-09-06
 
 ### ✨ Enhanced User Experience

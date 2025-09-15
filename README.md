@@ -13,14 +13,17 @@ Receipt Radar is a sophisticated iOS expense management app that uses cutting-ed
 
 ### 🤖 AI-Powered Receipt Processing
 - **Smart OCR Technology**: Advanced AI extracts merchant names, amounts, dates, and itemized purchases from receipt photos
+- **Multi-Currency Support**: Recognizes 50+ currencies including USD, EUR, GBP, INR, JPY, and more
+- **Regional Format Recognition**: Handles different date formats (DD/MM/YYYY, MM/DD/YYYY, DD.MM.YYYY)
 - **Multiple Receipt Support**: Process multiple receipts simultaneously
 - **Auto-categorization**: Intelligent expense categorization based on merchant and purchase patterns
 
 ### 📊 Comprehensive Expense Management
-- **Real-time Tracking**: Monitor spending across multiple categories
+- **Global Currency Support**: Track expenses in 50+ currencies with proper locale formatting
+- **Real-time Tracking**: Monitor spending across multiple categories and currencies
 - **Detailed Analytics**: Visual spending insights and monthly breakdowns
 - **Export Capabilities**: Export data in CSV or JSON formats
-- **Cloud Backup**: Secure data storage with seamless device synchronization
+- **Intelligent Tax Recognition**: Supports regional tax labels (GST, VAT, Sales Tax)
 
 ### 🎨 Modern User Experience
 - **SwiftUI Interface**: Native iOS design with smooth animations
@@ -118,16 +121,33 @@ Receipt Radar uses OpenAI's GPT-4 model for intelligent receipt processing. To c
 - No personal data is stored on external servers
 - You maintain full control over your financial information
 
+## 🌍 Multi-Currency Support
+
+Receipt Radar now supports 50+ currencies worldwide, making it perfect for international travelers and global businesses:
+
+### Supported Currencies
+- **Americas**: USD, CAD, MXN, BRL, ARS, CLP, COP, PEN, UYU
+- **Europe**: EUR, GBP, CHF, SEK, NOK, DKK, PLN, CZK, HUF, RON, BGN, HRK, RSD
+- **Asia-Pacific**: INR, JPY, CNY, SGD, HKD, AUD, NZD, MYR, THB, IDR, PHP, VND, KRW, TWD
+- **Middle East & Africa**: AED, SAR, QAR, KWD, BHD, OMR, ILS, TRY, EGP, ZAR, NGN, KES, GHS
+- **Others**: RUB, UAH, KZT, UZS
+
+### Currency Features
+- **Smart Recognition**: Automatically detects currency symbols (₹, €, £, ¥, $, etc.)
+- **Locale Formatting**: Proper currency display based on regional standards
+- **Regional Tax Support**: Recognizes GST (India), VAT (Europe), Sales Tax (US)
+- **Date Format Intelligence**: Handles DD/MM/YYYY, MM/DD/YYYY, DD.MM.YYYY formats
+
 ## 📊 Export Formats
 
 ### CSV Export
 - Compatible with Excel and Google Sheets
-- Includes all expense details and categories
+- Includes all expense details, categories, and currencies
 - Perfect for accounting software integration
 
 ### JSON Export
 - Structured data format for developers
-- Complete metadata and categorization
+- Complete metadata, categorization, and currency information
 - Ideal for custom analysis and integration
 
 ## 🔄 Data Migration
@@ -168,11 +188,11 @@ For support, feature requests, or bug reports:
 ## 🗺 Roadmap
 
 ### Upcoming Features
-- **Multiple Currencies**: Support for international expense tracking
 - **Team Collaboration**: Shared expense management for businesses
 - **Receipt Templates**: Custom receipt processing for specific merchants
 - **Budget Alerts**: Smart notifications for spending limits
 - **Siri Integration**: Voice-controlled expense entry
+- **Currency Conversion**: Real-time exchange rates for multi-currency portfolios
 
 ---
 

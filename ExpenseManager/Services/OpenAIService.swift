@@ -98,7 +98,7 @@ class OpenAIService {
         return """
         Extract detailed expense information from this receipt image. Return ONLY valid JSON (no markdown, no text).
 
-        REQUIRED: date (YYYY-MM-DD), merchant, amount (final total), currency (default USD), category from: Food & Dining, Transportation, Shopping, Entertainment, Bills & Utilities, Healthcare, Travel, Education, Business, Other
+        REQUIRED: date (YYYY-MM-DD), merchant, amount (final total), currency, category from: Food & Dining, Transportation, Shopping, Entertainment, Bills & Utilities, Healthcare, Travel, Education, Business, Other
 
         OPTIONAL: description, paymentMethod, taxAmount, confidence (0.0-1.0)
 
@@ -106,15 +106,87 @@ class OpenAIService {
 
         FINANCIAL: subtotal, discounts, fees, tip, itemsTotal
 
+        CURRENCY RECOGNITION:
+        - USD: $, Dollar, United States Dollar
+        - EUR: €, Euro, European Euro
+        - GBP: £, Pound, British Pound Sterling
+        - INR: ₹, Rs, Rupee, Indian Rupee
+        - JPY: ¥, Yen, Japanese Yen
+        - CNY: ¥, Yuan, Chinese Yuan, RMB
+        - CAD: C$, Canadian Dollar
+        - AUD: A$, Australian Dollar
+        - CHF: CHF, Swiss Franc
+        - SEK: kr, Swedish Krona
+        - NOK: kr, Norwegian Krone
+        - DKK: kr, Danish Krone
+        - PLN: zł, Polish Złoty
+        - CZK: Kč, Czech Koruna
+        - HUF: Ft, Hungarian Forint
+        - RON: lei, Romanian Leu
+        - BGN: лв, Bulgarian Lev
+        - HRK: kn, Croatian Kuna
+        - RSD: дин, Serbian Dinar
+        - TRY: ₺, Turkish Lira
+        - ILS: ₪, Israeli Shekel
+        - AED: د.إ, UAE Dirham
+        - SAR: ر.س, Saudi Riyal
+        - QAR: ر.ق, Qatari Riyal
+        - KWD: د.ك, Kuwaiti Dinar
+        - BHD: .د.ب, Bahraini Dinar
+        - OMR: ر.ع, Omani Rial
+        - EGP: ج.م, Egyptian Pound
+        - ZAR: R, South African Rand
+        - NGN: ₦, Nigerian Naira
+        - KES: KSh, Kenyan Shilling
+        - GHS: ₵, Ghanaian Cedi
+        - MXN: MX$, Mexican Peso
+        - BRL: R$, Brazilian Real
+        - ARS: AR$, Argentine Peso
+        - CLP: CLP$, Chilean Peso
+        - COP: COL$, Colombian Peso
+        - PEN: S/, Peruvian Sol
+        - UYU: $U, Uruguayan Peso
+        - SGD: S$, Singapore Dollar
+        - MYR: RM, Malaysian Ringgit
+        - THB: ฿, Thai Baht
+        - IDR: Rp, Indonesian Rupiah
+        - PHP: ₱, Philippine Peso
+        - VND: ₫, Vietnamese Dong
+        - KRW: ₩, South Korean Won
+        - TWD: NT$, Taiwan Dollar
+        - HKD: HK$, Hong Kong Dollar
+        - NZD: NZ$, New Zealand Dollar
+        - RUB: ₽, Russian Ruble
+        - UAH: ₴, Ukrainian Hryvnia
+        - KZT: ₸, Kazakhstani Tenge
+        - UZS: soʻm, Uzbekistani Som
+        - Default to USD if currency cannot be determined
+
+        DATE FORMAT HANDLING:
+        - CRITICAL: For German date format DD.MM.YY, interpret YY as 20YY (e.g., "25" means "2025")
+        - CRITICAL: For Indian date format DD/MM/YY or DD-MM-YY, interpret YY as 20YY
+        - CRITICAL: For US date format MM/DD/YY, interpret YY as 20YY
+        - CRITICAL: For European date format DD.MM.YYYY or DD/MM/YYYY, use as-is
+        - Always prioritize full ISO timestamps when available (e.g., "2025-09-06T19:22:16.000Z")
+        - If both short format and full timestamp are present, use the full timestamp
+        - Common Indian formats: DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY
+
+        REGIONAL CONSIDERATIONS:
+        - Indian receipts: Look for GST, CGST, SGST, IGST tax labels
+        - European receipts: Look for VAT, MwSt, TVA tax labels
+        - US receipts: Look for Sales Tax, State Tax labels
+        - UK receipts: Look for VAT tax labels
+        - Common Indian merchants: Reliance, Big Bazaar, Spencer's, More, etc.
+        - Decimal separators: Use . for amount (convert , to . if needed)
+
         RULES:
         - Extract items ONLY if clearly itemized
         - Use final total for "amount"
         - Item categories: Food, Beverage, Product, Service, Electronics, Household, etc.
         - If unclear, set items to null
         - Ensure financial breakdown adds up
-        - CRITICAL: For German date format DD.MM.YY, interpret YY as 20YY (e.g., "25" means "2025", not "1925" or "2023")
-        - Always prioritize full ISO timestamps when available (e.g., "2025-09-06T19:22:16.000Z")
-        - If both short format (06.09.25) and full timestamp are present, use the full timestamp
+        - Always extract currency symbol/code and convert to standard 3-letter code
+        - For amounts with comma as decimal separator (European style), convert to dot format
 
         JSON FORMAT:
         {

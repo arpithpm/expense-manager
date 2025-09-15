@@ -6,7 +6,7 @@
 AI-powered expense tracker
 
 ### Promotional Text (170 characters max)
-Transform receipt photos into organized expenses instantly! AI-powered extraction, secure local storage, and beautiful analytics make expense tracking effortless.
+Transform receipts into organized expenses instantly! AI supports 50+ currencies, secure local storage, and beautiful analytics for global users.
 
 ### App Description (4000 characters max)
 
@@ -16,15 +16,19 @@ Turn your iPhone into an intelligent expense tracking powerhouse! Receipt Radar 
 
 🤖 **SMART AI PROCESSING**
 • Advanced OCR extracts merchant names, amounts, dates, and itemized purchases
-• Process multiple receipts simultaneously 
+• Global support for 50+ currencies (USD, EUR, GBP, INR, JPY, CNY, and more)
+• Regional format recognition (DD/MM/YYYY, MM/DD/YYYY, various tax labels)
+• Process multiple receipts simultaneously
 • Intelligent auto-categorization based on merchant patterns
-• Support for various receipt formats and languages
+• Support for various receipt formats and international languages
 
-📊 **COMPREHENSIVE TRACKING** 
-• Real-time spending monitoring across categories
+📊 **COMPREHENSIVE TRACKING**
+• Multi-currency expense tracking with proper locale formatting
+• Real-time spending monitoring across categories and currencies
 • Beautiful visual analytics and monthly breakdowns
 • Detailed expense history with search and filtering
 • Custom categories and payment method tracking
+• International tax recognition (GST, VAT, Sales Tax)
 
 🎨 **MODERN EXPERIENCE**
 • Native SwiftUI interface with smooth animations

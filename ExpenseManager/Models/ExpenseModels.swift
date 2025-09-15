@@ -446,6 +446,165 @@ enum InsightsError: LocalizedError {
     }
 }
 
+// MARK: - Currency Helper
+
+struct CurrencyHelper {
+    static func symbol(for currencyCode: String) -> String {
+        switch currencyCode.uppercased() {
+        case "USD", "CAD", "AUD", "NZD", "MXN", "ARS", "CLP", "COP", "UYU", "SGD", "HKD", "TWD":
+            return "$"
+        case "EUR":
+            return "€"
+        case "GBP":
+            return "£"
+        case "INR":
+            return "₹"
+        case "JPY", "CNY":
+            return "¥"
+        case "CHF":
+            return "CHF"
+        case "SEK", "NOK", "DKK":
+            return "kr"
+        case "PLN":
+            return "zł"
+        case "CZK":
+            return "Kč"
+        case "HUF":
+            return "Ft"
+        case "RON":
+            return "lei"
+        case "BGN":
+            return "лв"
+        case "HRK":
+            return "kn"
+        case "RSD":
+            return "дин"
+        case "TRY":
+            return "₺"
+        case "ILS":
+            return "₪"
+        case "AED":
+            return "د.إ"
+        case "SAR":
+            return "ر.س"
+        case "QAR":
+            return "ر.ق"
+        case "KWD":
+            return "د.ك"
+        case "BHD":
+            return ".د.ب"
+        case "OMR":
+            return "ر.ع"
+        case "EGP":
+            return "ج.م"
+        case "ZAR":
+            return "R"
+        case "NGN":
+            return "₦"
+        case "KES":
+            return "KSh"
+        case "GHS":
+            return "₵"
+        case "BRL":
+            return "R$"
+        case "PEN":
+            return "S/"
+        case "MYR":
+            return "RM"
+        case "THB":
+            return "฿"
+        case "IDR":
+            return "Rp"
+        case "PHP":
+            return "₱"
+        case "VND":
+            return "₫"
+        case "KRW":
+            return "₩"
+        case "RUB":
+            return "₽"
+        case "UAH":
+            return "₴"
+        case "KZT":
+            return "₸"
+        case "UZS":
+            return "soʻm"
+        default:
+            return currencyCode
+        }
+    }
+
+    static func isSupported(_ currencyCode: String) -> Bool {
+        let supportedCurrencies = [
+            "USD", "EUR", "GBP", "INR", "JPY", "CNY", "CAD", "AUD", "CHF", "SEK", "NOK", "DKK",
+            "PLN", "CZK", "HUF", "RON", "BGN", "HRK", "RSD", "TRY", "ILS", "AED", "SAR", "QAR",
+            "KWD", "BHD", "OMR", "EGP", "ZAR", "NGN", "KES", "GHS", "MXN", "BRL", "ARS", "CLP",
+            "COP", "PEN", "UYU", "SGD", "MYR", "THB", "IDR", "PHP", "VND", "KRW", "TWD", "HKD",
+            "NZD", "RUB", "UAH", "KZT", "UZS"
+        ]
+        return supportedCurrencies.contains(currencyCode.uppercased())
+    }
+
+    static func name(for currencyCode: String) -> String {
+        switch currencyCode.uppercased() {
+        case "USD": return "US Dollar"
+        case "EUR": return "Euro"
+        case "GBP": return "British Pound"
+        case "INR": return "Indian Rupee"
+        case "JPY": return "Japanese Yen"
+        case "CNY": return "Chinese Yuan"
+        case "CAD": return "Canadian Dollar"
+        case "AUD": return "Australian Dollar"
+        case "CHF": return "Swiss Franc"
+        case "SEK": return "Swedish Krona"
+        case "NOK": return "Norwegian Krone"
+        case "DKK": return "Danish Krone"
+        case "PLN": return "Polish Złoty"
+        case "CZK": return "Czech Koruna"
+        case "HUF": return "Hungarian Forint"
+        case "RON": return "Romanian Leu"
+        case "BGN": return "Bulgarian Lev"
+        case "HRK": return "Croatian Kuna"
+        case "RSD": return "Serbian Dinar"
+        case "TRY": return "Turkish Lira"
+        case "ILS": return "Israeli Shekel"
+        case "AED": return "UAE Dirham"
+        case "SAR": return "Saudi Riyal"
+        case "QAR": return "Qatari Riyal"
+        case "KWD": return "Kuwaiti Dinar"
+        case "BHD": return "Bahraini Dinar"
+        case "OMR": return "Omani Rial"
+        case "EGP": return "Egyptian Pound"
+        case "ZAR": return "South African Rand"
+        case "NGN": return "Nigerian Naira"
+        case "KES": return "Kenyan Shilling"
+        case "GHS": return "Ghanaian Cedi"
+        case "MXN": return "Mexican Peso"
+        case "BRL": return "Brazilian Real"
+        case "ARS": return "Argentine Peso"
+        case "CLP": return "Chilean Peso"
+        case "COP": return "Colombian Peso"
+        case "PEN": return "Peruvian Sol"
+        case "UYU": return "Uruguayan Peso"
+        case "SGD": return "Singapore Dollar"
+        case "MYR": return "Malaysian Ringgit"
+        case "THB": return "Thai Baht"
+        case "IDR": return "Indonesian Rupiah"
+        case "PHP": return "Philippine Peso"
+        case "VND": return "Vietnamese Dong"
+        case "KRW": return "South Korean Won"
+        case "TWD": return "Taiwan Dollar"
+        case "HKD": return "Hong Kong Dollar"
+        case "NZD": return "New Zealand Dollar"
+        case "RUB": return "Russian Ruble"
+        case "UAH": return "Ukrainian Hryvnia"
+        case "KZT": return "Kazakhstani Tenge"
+        case "UZS": return "Uzbekistani Som"
+        default: return currencyCode
+        }
+    }
+}
+
 // MARK: - Extensions
 
 extension Double {
@@ -455,13 +614,132 @@ extension Double {
         formatter.currencyCode = "USD"
         return formatter.string(from: NSNumber(value: self)) ?? "$\(self)"
     }
+
+    func formatted(currency: String) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = currency
+
+        // Set locale based on currency for proper formatting
+        switch currency {
+        case "USD", "CAD", "AUD", "NZD", "MXN":
+            formatter.locale = Locale(identifier: "en_US")
+        case "EUR":
+            formatter.locale = Locale(identifier: "en_DE")
+        case "GBP":
+            formatter.locale = Locale(identifier: "en_GB")
+        case "INR":
+            formatter.locale = Locale(identifier: "en_IN")
+        case "JPY":
+            formatter.locale = Locale(identifier: "ja_JP")
+        case "CNY":
+            formatter.locale = Locale(identifier: "zh_CN")
+        case "CHF":
+            formatter.locale = Locale(identifier: "de_CH")
+        case "SEK":
+            formatter.locale = Locale(identifier: "sv_SE")
+        case "NOK":
+            formatter.locale = Locale(identifier: "nb_NO")
+        case "DKK":
+            formatter.locale = Locale(identifier: "da_DK")
+        case "PLN":
+            formatter.locale = Locale(identifier: "pl_PL")
+        case "CZK":
+            formatter.locale = Locale(identifier: "cs_CZ")
+        case "HUF":
+            formatter.locale = Locale(identifier: "hu_HU")
+        case "RON":
+            formatter.locale = Locale(identifier: "ro_RO")
+        case "BGN":
+            formatter.locale = Locale(identifier: "bg_BG")
+        case "HRK":
+            formatter.locale = Locale(identifier: "hr_HR")
+        case "RSD":
+            formatter.locale = Locale(identifier: "sr_RS")
+        case "TRY":
+            formatter.locale = Locale(identifier: "tr_TR")
+        case "ILS":
+            formatter.locale = Locale(identifier: "he_IL")
+        case "AED":
+            formatter.locale = Locale(identifier: "ar_AE")
+        case "SAR":
+            formatter.locale = Locale(identifier: "ar_SA")
+        case "QAR":
+            formatter.locale = Locale(identifier: "ar_QA")
+        case "KWD":
+            formatter.locale = Locale(identifier: "ar_KW")
+        case "BHD":
+            formatter.locale = Locale(identifier: "ar_BH")
+        case "OMR":
+            formatter.locale = Locale(identifier: "ar_OM")
+        case "EGP":
+            formatter.locale = Locale(identifier: "ar_EG")
+        case "ZAR":
+            formatter.locale = Locale(identifier: "en_ZA")
+        case "NGN":
+            formatter.locale = Locale(identifier: "en_NG")
+        case "KES":
+            formatter.locale = Locale(identifier: "en_KE")
+        case "GHS":
+            formatter.locale = Locale(identifier: "en_GH")
+        case "BRL":
+            formatter.locale = Locale(identifier: "pt_BR")
+        case "ARS":
+            formatter.locale = Locale(identifier: "es_AR")
+        case "CLP":
+            formatter.locale = Locale(identifier: "es_CL")
+        case "COP":
+            formatter.locale = Locale(identifier: "es_CO")
+        case "PEN":
+            formatter.locale = Locale(identifier: "es_PE")
+        case "UYU":
+            formatter.locale = Locale(identifier: "es_UY")
+        case "SGD":
+            formatter.locale = Locale(identifier: "en_SG")
+        case "MYR":
+            formatter.locale = Locale(identifier: "ms_MY")
+        case "THB":
+            formatter.locale = Locale(identifier: "th_TH")
+        case "IDR":
+            formatter.locale = Locale(identifier: "id_ID")
+        case "PHP":
+            formatter.locale = Locale(identifier: "en_PH")
+        case "VND":
+            formatter.locale = Locale(identifier: "vi_VN")
+        case "KRW":
+            formatter.locale = Locale(identifier: "ko_KR")
+        case "TWD":
+            formatter.locale = Locale(identifier: "zh_TW")
+        case "HKD":
+            formatter.locale = Locale(identifier: "zh_HK")
+        case "RUB":
+            formatter.locale = Locale(identifier: "ru_RU")
+        case "UAH":
+            formatter.locale = Locale(identifier: "uk_UA")
+        case "KZT":
+            formatter.locale = Locale(identifier: "kk_KZ")
+        case "UZS":
+            formatter.locale = Locale(identifier: "uz_UZ")
+        default:
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+        }
+
+        // Fallback to symbol if locale formatting fails
+        if let formatted = formatter.string(from: NSNumber(value: self)) {
+            return formatted
+        } else {
+            // Manual fallback with currency symbols
+            let symbol = CurrencyHelper.symbol(for: currency)
+            return "\(symbol)\(String(format: "%.2f", self))"
+        }
+    }
 }
 
 extension Expense {
     var hasDetailedBreakdown: Bool {
         return items?.isEmpty == false || subtotal != nil || taxAmount != nil
     }
-    
+
     var calculatedTotal: Double {
         let itemsSum = items?.reduce(0) { $0 + $1.totalPrice } ?? 0
         let subtotalValue = subtotal ?? itemsSum
@@ -469,12 +747,41 @@ extension Expense {
         let feesValue = fees ?? 0
         let tipValue = tip ?? 0
         let discountValue = discounts ?? 0
-        
+
         return subtotalValue + taxValue + feesValue + tipValue - discountValue
     }
-    
+
     var isComplexExpense: Bool {
         return (items?.count ?? 0) > 1 || taxAmount != nil || fees != nil || tip != nil || discounts != nil
+    }
+
+    var formattedAmount: String {
+        return amount.formatted(currency: currency)
+    }
+
+    var formattedTaxAmount: String? {
+        guard let taxAmount = taxAmount else { return nil }
+        return taxAmount.formatted(currency: currency)
+    }
+
+    var formattedSubtotal: String? {
+        guard let subtotal = subtotal else { return nil }
+        return subtotal.formatted(currency: currency)
+    }
+
+    var formattedDiscounts: String? {
+        guard let discounts = discounts else { return nil }
+        return discounts.formatted(currency: currency)
+    }
+
+    var formattedFees: String? {
+        guard let fees = fees else { return nil }
+        return fees.formatted(currency: currency)
+    }
+
+    var formattedTip: String? {
+        guard let tip = tip else { return nil }
+        return tip.formatted(currency: currency)
     }
 }
 
@@ -482,5 +789,14 @@ extension ExpenseItem {
     var unitPriceFormatted: String? {
         guard let unitPrice = unitPrice else { return nil }
         return String(format: "$%.2f", unitPrice)
+    }
+
+    func formattedUnitPrice(currency: String) -> String? {
+        guard let unitPrice = unitPrice else { return nil }
+        return unitPrice.formatted(currency: currency)
+    }
+
+    func formattedTotalPrice(currency: String) -> String {
+        return totalPrice.formatted(currency: currency)
     }
 }

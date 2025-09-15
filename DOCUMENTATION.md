@@ -19,7 +19,7 @@
 
 ## Overview
 
-ReceiptRadar is an advanced iOS expense management application that leverages AI-powered receipt scanning to automatically extract comprehensive expense information with item-level tracking. The app combines OpenAI's GPT-4o Vision API for detailed receipt processing with local UserDefaults storage, featuring multi-currency support and advanced analytics capabilities.
+ReceiptRadar is an advanced iOS expense management application that leverages AI-powered receipt scanning to automatically extract comprehensive expense information with item-level tracking. The app combines OpenAI's GPT-4o Vision API for detailed receipt processing with local Core Data storage, featuring comprehensive multi-currency support (50+ currencies) and advanced analytics capabilities.
 
 ### Core Mission
 Transform receipt photos into detailed, structured expense data with individual item tracking, enabling users to gain deep insights into their spending patterns at the most granular level.
@@ -28,6 +28,9 @@ Transform receipt photos into detailed, structured expense data with individual 
 
 ### 🔍 **AI-Powered Receipt Processing**
 - **Advanced OCR**: Uses GPT-4o Vision API for accurate text extraction
+- **Global Currency Recognition**: Supports 50+ currencies with intelligent symbol detection
+- **Regional Format Support**: Handles various date formats (DD/MM/YYYY, MM/DD/YYYY, etc.)
+- **Tax Label Intelligence**: Recognizes GST (India), VAT (Europe), Sales Tax (US)
 - **Intelligent Parsing**: Extracts both basic expense data and detailed item information
 - **Multi-format Support**: Handles various receipt formats and layouts
 - **Quality Validation**: Ensures extracted data integrity and accuracy
@@ -267,27 +270,63 @@ The AI prompt has been optimized for detailed extraction:
 
 ### Currency Handling
 
-#### Automatic Detection
-- **AI Recognition**: Extracts currency from receipt text
-- **Symbol Mapping**: Maps currency codes to symbols
-- **Locale Formatting**: Uses iOS NumberFormatter for proper display
-- **Fallback Support**: Graceful handling when currency unclear
+#### Comprehensive Currency Support
+Receipt Radar now supports 50+ global currencies with intelligent recognition and proper formatting:
 
-#### Display Features
-- **Proper Symbols**: € for EUR, $ for USD, £ for GBP
-- **Consistent Formatting**: All amounts use correct currency
-- **Mixed Currency Support**: Handles multiple currencies in one app
-- **Primary Currency Logic**: Determines main currency for summaries
+**Supported Currencies:**
+- **Americas**: USD, CAD, MXN, BRL, ARS, CLP, COP, PEN, UYU
+- **Europe**: EUR, GBP, CHF, SEK, NOK, DKK, PLN, CZK, HUF, RON, BGN, HRK, RSD, TRY
+- **Asia-Pacific**: INR, JPY, CNY, SGD, HKD, AUD, NZD, MYR, THB, IDR, PHP, VND, KRW, TWD
+- **Middle East & Africa**: AED, SAR, QAR, KWD, BHD, OMR, ILS, EGP, ZAR, NGN, KES, GHS
+- **Others**: RUB, UAH, KZT, UZS
+
+#### Enhanced Detection Features
+- **Smart Symbol Recognition**: Automatically detects currency symbols (₹, €, £, ¥, $, ₦, ₺, etc.)
+- **Regional Format Support**: Handles different decimal separators and thousands separators
+- **Tax Label Intelligence**: Recognizes regional tax formats (GST for India, VAT for Europe, Sales Tax for US)
+- **Date Format Handling**: Supports multiple date formats (DD/MM/YYYY, MM/DD/YYYY, DD.MM.YYYY)
+
+#### Advanced Currency Processing
+- **Locale-Aware Formatting**: Uses appropriate locale for each currency
+- **Currency Validation**: Ensures only supported currencies are processed
+- **Fallback Mechanisms**: Graceful handling when currency cannot be determined
+- **Mixed Currency Support**: Handles multiple currencies within the same app
 
 #### Implementation
 ```swift
+// Enhanced currency formatting with locale support
 extension Double {
     func formatted(currency: String) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
         formatter.currencyCode = currency
-        return formatter.string(from: NSNumber(value: self)) ?? 
-               "\(currency) \(String(format: "%.2f", self))"
+
+        // Set appropriate locale based on currency
+        switch currency {
+        case "INR": formatter.locale = Locale(identifier: "en_IN")
+        case "EUR": formatter.locale = Locale(identifier: "en_DE")
+        case "GBP": formatter.locale = Locale(identifier: "en_GB")
+        case "JPY": formatter.locale = Locale(identifier: "ja_JP")
+        // ... and 40+ more currencies
+        default: formatter.locale = Locale(identifier: "en_US_POSIX")
+        }
+
+        return formatter.string(from: NSNumber(value: self)) ??
+               "\(CurrencyHelper.symbol(for: currency))\(String(format: "%.2f", self))"
+    }
+}
+
+// Currency helper for symbol mapping and validation
+struct CurrencyHelper {
+    static func symbol(for currencyCode: String) -> String {
+        switch currencyCode.uppercased() {
+        case "INR": return "₹"
+        case "EUR": return "€"
+        case "GBP": return "£"
+        case "JPY", "CNY": return "¥"
+        // ... 40+ more currency mappings
+        default: return currencyCode
+        }
     }
 }
 ```
