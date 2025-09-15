@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [2.2.0] - 2025-09-15
 
+### 📄 PDF Receipt Support
+
+#### Comprehensive File Format Support
+- **PDF Processing**: Added support for PDF receipts, invoices, and digital documents
+- **Multi-Page PDF Handling**: Automatically processes each page of multi-page PDF documents
+- **High-Quality Conversion**: PDF-to-image conversion with optimized rendering for AI processing
+- **Mixed Format Support**: Handle photos and PDFs simultaneously in a single batch
+
+#### Enhanced User Experience
+- **Unified File Picker**: Updated interface to support both photos and PDF selection
+- **Smart File Detection**: Automatically identifies and processes different file types appropriately
+- **Improved Messaging**: Updated UI text to reflect PDF support capabilities
+- **Digital Receipt Ready**: Perfect for email receipts, online invoices, and scanned documents
+
 ### 🌍 Global Multi-Currency Support
 
 #### Comprehensive Currency Recognition

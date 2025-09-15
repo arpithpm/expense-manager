@@ -27,12 +27,14 @@ Transform receipt photos into detailed, structured expense data with individual 
 ## Features
 
 ### 🔍 **AI-Powered Receipt Processing**
-- **Advanced OCR**: Uses GPT-4o Vision API for accurate text extraction
+- **Advanced OCR**: Uses GPT-4o Vision API for accurate text extraction from photos and PDFs
+- **PDF Document Support**: Process digital receipts, email attachments, and scanned PDF documents
+- **Multi-Page PDF Handling**: Automatically converts PDF pages to images for AI processing
 - **Global Currency Recognition**: Supports 50+ currencies with intelligent symbol detection
 - **Regional Format Support**: Handles various date formats (DD/MM/YYYY, MM/DD/YYYY, etc.)
 - **Tax Label Intelligence**: Recognizes GST (India), VAT (Europe), Sales Tax (US)
 - **Intelligent Parsing**: Extracts both basic expense data and detailed item information
-- **Multi-format Support**: Handles various receipt formats and layouts
+- **Multi-format Support**: Handles various receipt formats, layouts, and file types
 - **Quality Validation**: Ensures extracted data integrity and accuracy
 - **Error Recovery**: Graceful handling of unclear or damaged receipts
 

@@ -12,10 +12,11 @@ Receipt Radar is a sophisticated iOS expense management app that uses cutting-ed
 ## ✨ Features
 
 ### 🤖 AI-Powered Receipt Processing
-- **Smart OCR Technology**: Advanced AI extracts merchant names, amounts, dates, and itemized purchases from receipt photos
+- **Smart OCR Technology**: Advanced AI extracts merchant names, amounts, dates, and itemized purchases from receipt photos and PDFs
+- **PDF Support**: Process digital receipts, email attachments, and scanned documents in PDF format
 - **Multi-Currency Support**: Recognizes 50+ currencies including USD, EUR, GBP, INR, JPY, and more
 - **Regional Format Recognition**: Handles different date formats (DD/MM/YYYY, MM/DD/YYYY, DD.MM.YYYY)
-- **Multiple Receipt Support**: Process multiple receipts simultaneously
+- **Multiple File Support**: Process multiple photos and PDFs simultaneously
 - **Auto-categorization**: Intelligent expense categorization based on merchant and purchase patterns
 
 ### 📊 Comprehensive Expense Management
@@ -58,10 +59,11 @@ Receipt Radar is a sophisticated iOS expense management app that uses cutting-ed
 ## 📱 How to Use
 
 ### Processing Receipts
-1. **Capture**: Tap the camera icon to photograph your receipts
-2. **Process**: The AI automatically extracts expense details
-3. **Review**: Verify the extracted information and make any necessary edits
-4. **Save**: Add the expense to your tracking system
+1. **Select Files**: Tap the selection button to choose receipt photos or PDF documents
+2. **Multiple Formats**: Upload photos from camera/gallery or PDF files from email/storage
+3. **AI Processing**: The AI automatically extracts expense details from images and PDFs
+4. **Review**: Verify the extracted information and make any necessary edits
+5. **Save**: Add the expense to your tracking system
 
 ### Managing Expenses
 - **View All Expenses**: Browse your complete expense history

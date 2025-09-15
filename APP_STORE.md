@@ -15,10 +15,11 @@ Transform receipts into organized expenses instantly! AI supports 50+ currencies
 Turn your iPhone into an intelligent expense tracking powerhouse! Receipt Radar uses cutting-edge AI to instantly extract expense details from receipt photos, making financial management effortless and accurate.
 
 🤖 **SMART AI PROCESSING**
-• Advanced OCR extracts merchant names, amounts, dates, and itemized purchases
+• Advanced OCR extracts data from receipt photos AND PDF documents
 • Global support for 50+ currencies (USD, EUR, GBP, INR, JPY, CNY, and more)
+• PDF support for digital receipts, email attachments, and scanned documents
 • Regional format recognition (DD/MM/YYYY, MM/DD/YYYY, various tax labels)
-• Process multiple receipts simultaneously
+• Process multiple photos and PDFs simultaneously
 • Intelligent auto-categorization based on merchant patterns
 • Support for various receipt formats and international languages
 

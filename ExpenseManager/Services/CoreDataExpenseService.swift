@@ -3,6 +3,8 @@ import CoreData
 import Combine
 import PhotosUI
 import UIKit
+import PDFKit
+import UniformTypeIdentifiers
 
 public class CoreDataExpenseService: ObservableObject {
     public static let shared = CoreDataExpenseService()
@@ -83,7 +85,129 @@ public class CoreDataExpenseService: ObservableObject {
         
         return processedCount
     }
-    
+
+    func processDocuments(_ documentURLs: [URL]) async -> Int {
+        var processedCount = 0
+
+        for documentURL in documentURLs {
+            do {
+                // Check if we can access the file
+                guard documentURL.startAccessingSecurityScopedResource() else {
+                    print("Failed to access security scoped resource: \(documentURL)")
+                    continue
+                }
+
+                defer {
+                    documentURL.stopAccessingSecurityScopedResource()
+                }
+
+                // Read PDF data
+                let pdfData = try Data(contentsOf: documentURL)
+                print("Successfully loaded PDF from: \(documentURL.lastPathComponent)")
+
+                // Convert PDF to images
+                if let images = convertPDFToImages(pdfData) {
+                    for image in images {
+                        let extractedData = try await openAIService.extractExpenseFromReceipt(image)
+
+                        let expense = Expense(
+                            date: parseDateFromExtraction(extractedData.date),
+                            merchant: extractedData.merchant,
+                            amount: extractedData.amount,
+                            currency: CurrencyHelper.isSupported(extractedData.currency) ? extractedData.currency : "USD",
+                            category: extractedData.category,
+                            description: extractedData.description,
+                            paymentMethod: extractedData.paymentMethod,
+                            taxAmount: extractedData.taxAmount,
+                            items: extractedData.items?.map { openAIItem in
+                                ExpenseItem(
+                                    name: openAIItem.name,
+                                    quantity: openAIItem.quantity,
+                                    unitPrice: openAIItem.unitPrice,
+                                    totalPrice: openAIItem.totalPrice,
+                                    category: openAIItem.category,
+                                    description: openAIItem.description
+                                )
+                            },
+                            subtotal: extractedData.subtotal,
+                            discounts: extractedData.discounts,
+                            fees: extractedData.fees,
+                            tip: extractedData.tip,
+                            itemsTotal: extractedData.itemsTotal
+                        )
+
+                        try await addExpense(expense)
+                        processedCount += 1
+                    }
+                }
+            } catch {
+                print("Failed to process document \(documentURL.lastPathComponent): \(error)")
+                // Continue processing other documents even if one fails
+            }
+        }
+
+        return processedCount
+    }
+
+    private func convertPDFToImages(_ pdfData: Data) -> [UIImage]? {
+        guard let pdfDocument = PDFDocument(data: pdfData) else {
+            print("Failed to create PDF document from data")
+            return nil
+        }
+
+        var images: [UIImage] = []
+
+        for pageIndex in 0..<pdfDocument.pageCount {
+            guard let page = pdfDocument.page(at: pageIndex) else { continue }
+
+            // Set up rendering parameters for high quality
+            let pageRect = page.bounds(for: .mediaBox)
+            let renderer = UIGraphicsImageRenderer(size: pageRect.size)
+
+            let image = renderer.image { ctx in
+                // Fill with white background
+                UIColor.white.set()
+                ctx.fill(pageRect)
+
+                // Render the PDF page
+                ctx.cgContext.translateBy(x: 0.0, y: pageRect.size.height)
+                ctx.cgContext.scaleBy(x: 1.0, y: -1.0)
+                page.draw(with: .mediaBox, to: ctx.cgContext)
+            }
+
+            images.append(image)
+        }
+
+        print("Converted PDF to \(images.count) images")
+        return images.isEmpty ? nil : images
+    }
+
+    private func parseDateFromExtraction(_ dateString: String) -> Date {
+        let dateFormatters = [
+            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+            "yyyy-MM-dd'T'HH:mm:ssZ",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd",
+            "dd/MM/yyyy",
+            "dd-MM-yyyy",
+            "dd.MM.yyyy",
+            "MM/dd/yyyy",
+            "MM-dd-yyyy"
+        ]
+
+        for format in dateFormatters {
+            let formatter = DateFormatter()
+            formatter.dateFormat = format
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            if let date = formatter.date(from: dateString) {
+                return date
+            }
+        }
+
+        print("Warning: Could not parse date '\(dateString)', using current date")
+        return Date()
+    }
+
     private func loadImageData(from photoItem: PhotosPickerItem) async throws -> Data? {
         return try await withCheckedThrowingContinuation { continuation in
             photoItem.loadTransferable(type: Data.self) { result in

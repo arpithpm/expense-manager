@@ -3,16 +3,24 @@ import Combine
 import PhotosUI
 import UIKit
 import CoreData
+import PDFKit
+import UniformTypeIdentifiers
 
 class ExpenseService: ObservableObject {
     // Deprecated: Use CoreDataExpenseService.shared instead
     static let shared = ExpenseService()
-    
+
     // Migration helper - use CoreDataExpenseService for new implementations
     static var coreDataService: CoreDataExpenseService {
         return CoreDataExpenseService.shared
     }
-    
+
+    private let openAIService = OpenAIService.shared
+    private let userDefaults = UserDefaults.standard
+    private let expensesKey = "SavedExpenses"
+    private let lastBackupKey = "LastBackupDate"
+    private let firstLaunchKey = "HasLaunchedBefore"
+
     @Published var expenses: [Expense] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -32,24 +40,45 @@ class ExpenseService: ObservableObject {
     
     func processReceiptPhotos(_ photoItems: [PhotosPickerItem]) async -> Int {
         var processedCount = 0
-        
+
         for photoItem in photoItems {
             do {
                 // Debug PhotosPickerItem properties
                 let assetIdentifier = photoItem.itemIdentifier
                 print("Captured asset identifier during processing: \(assetIdentifier ?? "nil")")
                 print("PhotosPickerItem supportedContentTypes: \(photoItem.supportedContentTypes)")
-                
-                if let imageData = try await loadImageData(from: photoItem),
-                   let image = UIImage(data: imageData) {
-                    
-                    let extractedData = try await openAIService.extractExpenseFromReceipt(image)
-                    let expense = try createExpenseFromExtraction(extractedData)
-                    
-                    // Save expense locally
-                    _ = try addExpense(expense)
-                    
-                    processedCount += 1
+
+                // Check if this is a PDF or image
+                let isPDF = photoItem.supportedContentTypes.contains(UTType.pdf)
+
+                if isPDF {
+                    // Process PDF
+                    if let pdfData = try await loadData(from: photoItem),
+                       let images = convertPDFToImages(pdfData) {
+
+                        for image in images {
+                            let extractedData = try await openAIService.extractExpenseFromReceipt(image)
+                            let expense = try createExpenseFromExtraction(extractedData)
+
+                            // Save expense locally
+                            _ = try addExpense(expense)
+
+                            processedCount += 1
+                        }
+                    }
+                } else {
+                    // Process image
+                    if let imageData = try await loadData(from: photoItem),
+                       let image = UIImage(data: imageData) {
+
+                        let extractedData = try await openAIService.extractExpenseFromReceipt(image)
+                        let expense = try createExpenseFromExtraction(extractedData)
+
+                        // Save expense locally
+                        _ = try addExpense(expense)
+
+                        processedCount += 1
+                    }
                 }
             } catch {
                 print("Failed to process photo: \(error)")
@@ -78,8 +107,13 @@ class ExpenseService: ObservableObject {
         
         return processedCount
     }
+
+    func processDocuments(_ documentURLs: [URL]) async -> Int {
+        // Bridge to CoreDataExpenseService
+        return await CoreDataExpenseService.shared.processDocuments(documentURLs)
+    }
     
-    private func loadImageData(from photoItem: PhotosPickerItem) async throws -> Data? {
+    private func loadData(from photoItem: PhotosPickerItem) async throws -> Data? {
         return try await withCheckedThrowingContinuation { continuation in
             photoItem.loadTransferable(type: Data.self) { result in
                 switch result {
@@ -89,6 +123,7 @@ class ExpenseService: ObservableObject {
             }
         }
     }
+
     
     private func createExpenseFromExtraction(_ extraction: OpenAIExpenseExtraction) throws -> Expense {
         var expenseDate = parseDateFromExtraction(extraction.date)

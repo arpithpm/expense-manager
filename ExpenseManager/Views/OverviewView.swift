@@ -1,5 +1,7 @@
 import SwiftUI
 import PhotosUI
+import UniformTypeIdentifiers
+import PDFKit
 import Foundation
 import CoreData
 
@@ -9,6 +11,8 @@ struct OverviewView: View {
     @EnvironmentObject var configurationManager: ConfigurationManager
     @ObservedObject private var expenseService = ExpenseService.shared
     @State private var selectedPhotos: [PhotosPickerItem] = []
+    @State private var selectedDocuments: [URL] = []
+    @State private var showingDocumentPicker = false
     @State private var isProcessingReceipts = false
     @State private var showingAlert = false
     @State private var alertMessage = ""
@@ -293,10 +297,20 @@ struct OverviewView: View {
                 Text("Are you sure you want to delete the expense from \(expense.merchant) for \(expense.formattedAmount)?")
             }
         }
+        .sheet(isPresented: $showingDocumentPicker) {
+            DocumentPicker(selectedDocuments: $selectedDocuments)
+        }
         .onChange(of: selectedPhotos) { oldValue, newValue in
             if !newValue.isEmpty {
                 Task {
                     await processSelectedPhotos()
+                }
+            }
+        }
+        .onChange(of: selectedDocuments) { oldValue, newValue in
+            if !newValue.isEmpty {
+                Task {
+                    await processSelectedDocuments()
                 }
             }
         }
@@ -442,17 +456,17 @@ struct OverviewView: View {
                         VStack(alignment: .leading, spacing: 6) {
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text(isProcessingReceipts ? "Processing Receipts..." : "Select Receipt Photos")
+                                    Text(isProcessingReceipts ? "Processing Receipts..." : "Select Receipt Photos or PDFs")
                                         .font(.headline)
                                         .fontWeight(.semibold)
                                         .foregroundColor(.primary)
-                                    
+
                                     if isProcessingReceipts {
                                         Text("AI is analyzing your receipts")
                                             .font(.subheadline)
                                             .foregroundColor(.secondary)
                                     } else {
-                                        Text("Tap to scan receipts with AI")
+                                        Text("Tap to scan receipts and PDFs with AI")
                                             .font(.subheadline)
                                             .foregroundColor(.secondary)
                                     }
@@ -480,12 +494,12 @@ struct OverviewView: View {
                                     Label("AI-Powered", systemImage: "brain.head.profile")
                                         .font(.caption)
                                         .foregroundColor(.accentColor)
-                                    
-                                    Label("Multi-Photo", systemImage: "square.stack.3d.up.fill")
+
+                                    Label("PDF Support", systemImage: "doc.text.fill")
                                         .font(.caption)
                                         .foregroundColor(.accentColor)
-                                    
-                                    Label("Instant", systemImage: "bolt.fill")
+
+                                    Label("Multi-Format", systemImage: "square.stack.3d.up.fill")
                                         .font(.caption)
                                         .foregroundColor(.accentColor)
                                 }
@@ -550,6 +564,45 @@ struct OverviewView: View {
                 }
             }
             
+            // PDF picker button
+            Button(action: {
+                showingDocumentPicker = true
+            }) {
+                HStack(spacing: 12) {
+                    Image(systemName: "doc.text.fill")
+                        .font(.title3)
+                        .foregroundColor(.blue)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Select PDF Documents")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primary)
+
+                        Text("Choose PDFs from Files app")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "arrow.right.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.blue)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.blue.opacity(0.1))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                        )
+                )
+            }
+            .disabled(isProcessingReceipts)
+
             // Enhanced selected photos indicator
             if !selectedPhotos.isEmpty {
                 HStack(spacing: 12) {
@@ -558,12 +611,12 @@ struct OverviewView: View {
                         .font(.title3)
                     
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("\(selectedPhotos.count) photo\(selectedPhotos.count == 1 ? "" : "s") selected")
+                        Text("\(selectedPhotos.count) file\(selectedPhotos.count == 1 ? "" : "s") selected")
                             .font(.subheadline)
                             .fontWeight(.medium)
                             .foregroundColor(.primary)
-                        
-                        Text("Ready for AI processing")
+
+                        Text("Photos and PDFs ready for AI processing")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -643,7 +696,7 @@ struct OverviewView: View {
                     Text("No expenses yet")
                         .font(.title3)
                         .fontWeight(.medium)
-                    Text("Use the camera button above to scan your first receipt")
+                    Text("Use the buttons above to scan your first receipt photos or PDFs")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
@@ -685,9 +738,184 @@ struct OverviewView: View {
         
         isProcessingReceipts = false
     }
-    
-    
-    
+
+    private func processSelectedDocuments() async {
+        isProcessingReceipts = true
+        var processedCount = 0
+        let totalDocuments = selectedDocuments.count
+
+        for documentURL in selectedDocuments {
+            do {
+                // Since we use asCopy: true in DocumentPicker, files are already in app sandbox
+                // No need for security scoped resource access
+                print("Processing PDF: \(documentURL.lastPathComponent)")
+
+                // Read PDF data directly from copied file
+                let pdfData = try Data(contentsOf: documentURL)
+                print("Successfully loaded PDF from: \(documentURL.lastPathComponent) (\(pdfData.count) bytes)")
+
+                // Convert PDF to images
+                if let images = convertPDFToImages(pdfData) {
+                    print("Successfully converted PDF to \(images.count) images")
+                    for (index, image) in images.enumerated() {
+                        print("Processing page \(index + 1) of \(images.count)")
+                        // Process image directly with OpenAI service
+                        do {
+                            let extractedData = try await OpenAIService.shared.extractExpenseFromReceipt(image)
+
+                            let expense = Expense(
+                                date: parseDateFromExtraction(extractedData.date),
+                                merchant: extractedData.merchant,
+                                amount: extractedData.amount,
+                                currency: extractedData.currency.isEmpty ? "USD" : extractedData.currency,
+                                category: extractedData.category,
+                                description: extractedData.description,
+                                paymentMethod: extractedData.paymentMethod,
+                                taxAmount: extractedData.taxAmount,
+                                items: extractedData.items?.map { openAIItem in
+                                    ExpenseItem(
+                                        name: openAIItem.name,
+                                        quantity: openAIItem.quantity,
+                                        unitPrice: openAIItem.unitPrice,
+                                        totalPrice: openAIItem.totalPrice,
+                                        category: openAIItem.category,
+                                        description: openAIItem.description
+                                    )
+                                },
+                                subtotal: extractedData.subtotal,
+                                discounts: extractedData.discounts,
+                                fees: extractedData.fees,
+                                tip: extractedData.tip,
+                                itemsTotal: extractedData.itemsTotal
+                            )
+
+                            // Add to ExpenseService
+                            _ = try expenseService.addExpense(expense)
+                            processedCount += 1
+                        } catch {
+                            print("Failed to process PDF page: \(error)")
+                        }
+                    }
+                }
+            } catch {
+                print("Failed to process document \(documentURL.lastPathComponent): \(error)")
+
+                // Provide specific error messages based on error type
+                if let error = error as NSError? {
+                    switch error.code {
+                    case NSFileReadNoSuchFileError:
+                        print("PDF file not found or inaccessible")
+                    case NSFileReadNoPermissionError:
+                        print("No permission to read PDF file")
+                    default:
+                        print("PDF processing error: \(error.localizedDescription)")
+                    }
+                }
+                // Continue processing other documents even if one fails
+            }
+        }
+
+        selectedDocuments.removeAll()
+
+        if processedCount > 0 {
+            if processedCount == totalDocuments {
+                alertMessage = "Successfully processed \(processedCount) PDF document\(processedCount == 1 ? "" : "s") and added to your expenses."
+            } else {
+                alertMessage = "Processed \(processedCount) of \(totalDocuments) PDF documents. Some pages may have failed - check console for details."
+            }
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+        } else {
+            alertMessage = "Failed to process PDF documents. Please check your API credentials and ensure PDFs contain readable receipt text."
+        }
+        showingAlert = true
+
+        isProcessingReceipts = false
+    }
+
+    private func convertPDFToImages(_ pdfData: Data) -> [UIImage]? {
+        guard let pdfDocument = PDFDocument(data: pdfData) else {
+            print("Failed to create PDF document from data")
+            return nil
+        }
+
+        var images: [UIImage] = []
+
+        for pageIndex in 0..<pdfDocument.pageCount {
+            guard let page = pdfDocument.page(at: pageIndex) else { continue }
+
+            // Set up rendering parameters for high quality
+            let pageRect = page.bounds(for: .mediaBox)
+            let renderer = UIGraphicsImageRenderer(size: pageRect.size)
+
+            let image = renderer.image { ctx in
+                // Fill with white background
+                UIColor.white.set()
+                ctx.fill(pageRect)
+
+                // Render the PDF page
+                ctx.cgContext.translateBy(x: 0.0, y: pageRect.size.height)
+                ctx.cgContext.scaleBy(x: 1.0, y: -1.0)
+                page.draw(with: .mediaBox, to: ctx.cgContext)
+            }
+
+            images.append(image)
+        }
+
+        print("Converted PDF to \(images.count) images")
+        return images.isEmpty ? nil : images
+    }
+
+    private func parseDateFromExtraction(_ dateString: String) -> Date {
+        let dateFormatters = [
+            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+            "yyyy-MM-dd'T'HH:mm:ssZ",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd",
+            "dd/MM/yyyy",
+            "dd-MM-yyyy",
+            "dd.MM.yyyy",
+            "MM/dd/yyyy",
+            "MM-dd-yyyy"
+        ]
+
+        let calendar = Calendar.current
+        let currentYear = calendar.component(.year, from: Date())
+
+        for format in dateFormatters {
+            let formatter = DateFormatter()
+            formatter.dateFormat = format
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+
+            if let date = formatter.date(from: dateString) {
+                // Handle 2-digit year interpretation
+                let year = calendar.component(.year, from: date)
+                if year < 100 {
+                    let adjustedYear = year + 2000
+                    if adjustedYear > currentYear + 10 {
+                        let components = calendar.dateComponents([.month, .day], from: date)
+                        var newComponents = DateComponents()
+                        newComponents.year = adjustedYear - 100
+                        newComponents.month = components.month
+                        newComponents.day = components.day
+                        return calendar.date(from: newComponents) ?? date
+                    } else {
+                        let components = calendar.dateComponents([.month, .day], from: date)
+                        var newComponents = DateComponents()
+                        newComponents.year = adjustedYear
+                        newComponents.month = components.month
+                        newComponents.day = components.day
+                        return calendar.date(from: newComponents) ?? date
+                    }
+                }
+                return date
+            }
+        }
+
+        print("Warning: Could not parse date '\(dateString)', using current date")
+        return Date()
+    }
+
     private func deleteExpense(_ expense: Expense) {
         expenseToDelete = expense
         showingDeleteConfirmation = true
@@ -1304,6 +1532,41 @@ extension ExpenseSortOption {
             return "Merchants sorted alphabetically A-Z"
         case .merchantZA:
             return "Merchants sorted alphabetically Z-A"
+        }
+    }
+}
+
+struct DocumentPicker: UIViewControllerRepresentable {
+    @Binding var selectedDocuments: [URL]
+    @Environment(\.dismiss) private var dismiss
+
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [UTType.pdf], asCopy: true)
+        picker.delegate = context.coordinator
+        picker.allowsMultipleSelection = true
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, UIDocumentPickerDelegate {
+        let parent: DocumentPicker
+
+        init(_ parent: DocumentPicker) {
+            self.parent = parent
+        }
+
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            parent.selectedDocuments = urls
+            parent.dismiss()
+        }
+
+        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+            parent.dismiss()
         }
     }
 }
