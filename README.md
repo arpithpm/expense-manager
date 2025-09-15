@@ -4,7 +4,7 @@
 
 Receipt Radar is a sophisticated iOS expense management app that uses cutting-edge AI technology to automatically extract expense data from receipt photos, making expense tracking effortless and accurate.
 
-![Version](https://img.shields.io/badge/version-2.1.1-blue.svg)
+![Version](https://img.shields.io/badge/version-2.2.0-blue.svg)
 ![iOS](https://img.shields.io/badge/iOS-15.0%2B-green.svg)
 ![Swift](https://img.shields.io/badge/Swift-5.0-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)
