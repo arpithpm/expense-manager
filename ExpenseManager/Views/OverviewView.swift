@@ -352,79 +352,31 @@ struct OverviewView: View {
                 Spacer()
             }
             
-            PhotosPicker(
-                selection: $selectedPhotos,
-                maxSelectionCount: 10,
-                matching: .images
-            ) {
-                ZStack {
-                    // Background with gradient and glow effect
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(
-                            LinearGradient(
-                                gradient: Gradient(colors: [
-                                    Color.accentColor.opacity(0.15),
-                                    Color.accentColor.opacity(0.25),
-                                    Color.accentColor.opacity(0.15)
-                                ]),
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(
-                                    LinearGradient(
-                                        gradient: Gradient(colors: [
-                                            Color.accentColor.opacity(0.5),
-                                            Color.accentColor.opacity(0.8),
-                                            Color.accentColor.opacity(0.3)
-                                        ]),
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 2
-                                )
-                        )
-                        .shadow(color: Color.accentColor.opacity(glowIntensity), radius: 10, x: 0, y: 0)
-                        .scaleEffect(addButtonScale)
-                    
-                    // Animated scanning lines (when processing)
-                    if isProcessingReceipts {
-                        ZStack {
-                            Rectangle()
-                                .fill(Color.accentColor.opacity(0.3))
-                                .frame(height: 2)
-                                .offset(y: scanningAnimation ? 30 : -30)
-                                .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: scanningAnimation)
-                            
-                            Rectangle()
-                                .fill(Color.accentColor.opacity(0.2))
-                                .frame(height: 1)
-                                .offset(y: scanningAnimation ? 20 : -40)
-                                .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: scanningAnimation)
-                        }
-                        .mask(RoundedRectangle(cornerRadius: 18))
-                    }
-                    
-                    // Main content
-                    HStack(spacing: 16) {
+            // 50/50 Button Row Layout
+            HStack(spacing: 16) {
+                // Photos Button (Left 50%)
+                PhotosPicker(
+                    selection: $selectedPhotos,
+                    maxSelectionCount: 10,
+                    matching: .images
+                ) {
+                    VStack(spacing: 12) {
                         // Camera icon with animations
                         ZStack {
                             // Pulsing background circle
                             Circle()
                                 .fill(Color.accentColor.opacity(cameraButtonPulse ? 0.3 : 0.1))
-                                .frame(width: 60, height: 60)
+                                .frame(width: 50, height: 50)
                                 .scaleEffect(cameraButtonPulse ? 1.1 : 1.0)
                                 .animation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true), value: cameraButtonPulse)
-                            
+
                             if isProcessingReceipts {
                                 // Processing state - animated dots
-                                HStack(spacing: 4) {
+                                HStack(spacing: 2) {
                                     ForEach(0..<3) { index in
                                         Circle()
                                             .fill(Color.accentColor)
-                                            .frame(width: 6, height: 6)
+                                            .frame(width: 4, height: 4)
                                             .scaleEffect(scanningAnimation ? 1.5 : 0.5)
                                             .animation(
                                                 .easeInOut(duration: 0.6)
@@ -437,14 +389,14 @@ struct OverviewView: View {
                             } else {
                                 // Camera icon with flash effect
                                 Image(systemName: "camera.fill")
-                                    .font(.system(size: 28, weight: .medium))
+                                    .font(.system(size: 24, weight: .medium))
                                     .foregroundColor(.accentColor)
                                     .scaleEffect(addButtonScale * (cameraButtonPulse ? 1.05 : 1.0))
                                     .rotationEffect(.degrees(addButtonRotation))
                                     .overlay(
                                         // Flash effect
                                         Image(systemName: "camera.fill")
-                                            .font(.system(size: 28, weight: .medium))
+                                            .font(.system(size: 24, weight: .medium))
                                             .foregroundColor(.white)
                                             .opacity(glowIntensity)
                                             .scaleEffect(1.2)
@@ -452,102 +404,161 @@ struct OverviewView: View {
                                     )
                             }
                         }
-                        
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(isProcessingReceipts ? "Processing Receipts..." : "Select Receipt Photos or PDFs")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.primary)
 
-                                    if isProcessingReceipts {
-                                        Text("AI is analyzing your receipts")
-                                            .font(.subheadline)
-                                            .foregroundColor(.secondary)
-                                    } else {
-                                        Text("Tap to scan receipts and PDFs with AI")
-                                            .font(.subheadline)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                                
-                                Spacer()
-                                
-                                // Animated arrow or processing indicator
-                                if isProcessingReceipts {
-                                    ProgressView()
-                                        .scaleEffect(0.9)
-                                        .tint(.accentColor)
-                                } else {
-                                    Image(systemName: "arrow.right.circle.fill")
-                                        .font(.title2)
-                                        .foregroundColor(.accentColor)
-                                        .scaleEffect(addButtonScale)
-                                        .rotationEffect(.degrees(addButtonRotation * 0.1))
-                                }
-                            }
-                            
-                            // Feature highlights
+                        VStack(spacing: 4) {
+                            Text(isProcessingReceipts ? "Processing..." : "Photos")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.primary)
+
                             if !isProcessingReceipts {
-                                HStack(spacing: 12) {
-                                    Label("AI-Powered", systemImage: "brain.head.profile")
-                                        .font(.caption)
-                                        .foregroundColor(.accentColor)
-
-                                    Label("PDF Support", systemImage: "doc.text.fill")
-                                        .font(.caption)
-                                        .foregroundColor(.accentColor)
-
-                                    Label("Multi-Format", systemImage: "square.stack.3d.up.fill")
-                                        .font(.caption)
-                                        .foregroundColor(.accentColor)
-                                }
+                                Text("Scan Images")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
                             }
                         }
+
+                        // Animated arrow or processing indicator
+                        if isProcessingReceipts {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                                .tint(.accentColor)
+                        } else {
+                            Image(systemName: "arrow.right.circle.fill")
+                                .font(.title3)
+                                .foregroundColor(.accentColor)
+                                .scaleEffect(addButtonScale)
+                                .rotationEffect(.degrees(addButtonRotation * 0.1))
+                        }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 16)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 20)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [
+                                        Color.accentColor.opacity(0.15),
+                                        Color.accentColor.opacity(0.25),
+                                        Color.accentColor.opacity(0.15)
+                                    ]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [
+                                                Color.accentColor.opacity(0.5),
+                                                Color.accentColor.opacity(0.8),
+                                                Color.accentColor.opacity(0.3)
+                                            ]),
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 2
+                                    )
+                            )
+                            .shadow(color: Color.accentColor.opacity(glowIntensity), radius: 8, x: 0, y: 0)
+                            .scaleEffect(addButtonScale)
+                    )
                 }
-                .frame(minHeight: 100)
-            }
-            .disabled(isProcessingReceipts)
-            .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                    addButtonScale = pressing ? 0.96 : 1.0
-                    glowIntensity = pressing ? 0.4 : 0.0
-                }
-            }, perform: {})
-            .onTapGesture {
-                // Enhanced camera button animation on tap
-                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                impactFeedback.impactOccurred()
-                
-                withAnimation(.spring(response: 0.2, dampingFraction: 0.4)) {
-                    addButtonRotation += 360
-                    addButtonScale = 1.08
-                    glowIntensity = 0.8
-                }
-                
-                // Flash effect
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    withAnimation(.easeOut(duration: 0.3)) {
-                        glowIntensity = 0.0
+                .disabled(isProcessingReceipts)
+                .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                        addButtonScale = pressing ? 0.96 : 1.0
+                        glowIntensity = pressing ? 0.4 : 0.0
+                    }
+                }, perform: {})
+                .onTapGesture {
+                    // Enhanced camera button animation on tap
+                    let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                    impactFeedback.impactOccurred()
+
+                    withAnimation(.spring(response: 0.2, dampingFraction: 0.4)) {
+                        addButtonRotation += 360
+                        addButtonScale = 1.08
+                        glowIntensity = 0.8
+                    }
+
+                    // Flash effect
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            glowIntensity = 0.0
+                        }
+                    }
+
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                            addButtonScale = 1.0
+                        }
                     }
                 }
-                
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-                        addButtonScale = 1.0
+
+                // PDF Button (Right 50%)
+                Button(action: {
+                    showingDocumentPicker = true
+
+                    // Add haptic feedback
+                    let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                    impactFeedback.impactOccurred()
+                }) {
+                    VStack(spacing: 12) {
+                        // PDF icon
+                        ZStack {
+                            Circle()
+                                .fill(Color.blue.opacity(0.15))
+                                .frame(width: 50, height: 50)
+
+                            Image(systemName: "doc.text.fill")
+                                .font(.system(size: 24, weight: .medium))
+                                .foregroundColor(.blue)
+                        }
+
+                        VStack(spacing: 4) {
+                            Text("PDFs")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.primary)
+
+                            Text("Upload Files")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+
+                        Image(systemName: "arrow.right.circle.fill")
+                            .font(.title3)
+                            .foregroundColor(.blue)
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 20)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.blue.opacity(0.1))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(Color.blue.opacity(0.3), lineWidth: 2)
+                            )
+                            .shadow(color: Color.blue.opacity(0.2), radius: 4, x: 0, y: 2)
+                    )
                 }
+                .disabled(isProcessingReceipts)
+                .scaleEffect(isProcessingReceipts ? 0.95 : 1.0)
+                .opacity(isProcessingReceipts ? 0.6 : 1.0)
+                .animation(.easeInOut(duration: 0.2), value: isProcessingReceipts)
             }
             .onAppear {
                 // Start continuous animations
                 withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
                     cameraButtonPulse = true
                 }
-                
+
                 if isProcessingReceipts {
                     withAnimation(.linear(duration: 0.1)) {
                         scanningAnimation = true
@@ -563,45 +574,25 @@ struct OverviewView: View {
                     scanningAnimation = false
                 }
             }
-            
-            // PDF picker button
-            Button(action: {
-                showingDocumentPicker = true
-            }) {
-                HStack(spacing: 12) {
-                    Image(systemName: "doc.text.fill")
-                        .font(.title3)
-                        .foregroundColor(.blue)
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Select PDF Documents")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.primary)
+            // Feature highlights row
+            if !isProcessingReceipts {
+                HStack(spacing: 16) {
+                    Label("AI-Powered", systemImage: "brain.head.profile")
+                        .font(.caption)
+                        .foregroundColor(.accentColor)
 
-                        Text("Choose PDFs from Files app")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+                    Label("Multi-Currency", systemImage: "globe")
+                        .font(.caption)
+                        .foregroundColor(.accentColor)
 
-                    Spacer()
-
-                    Image(systemName: "arrow.right.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(.blue)
+                    Label("50+ Formats", systemImage: "square.stack.3d.up.fill")
+                        .font(.caption)
+                        .foregroundColor(.accentColor)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.blue.opacity(0.1))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
-                        )
-                )
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal)
             }
-            .disabled(isProcessingReceipts)
 
             // Enhanced selected photos indicator
             if !selectedPhotos.isEmpty {
