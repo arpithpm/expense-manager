@@ -6,9 +6,8 @@ import CoreData
 struct SpendingInsightsView: View {
     @ObservedObject private var expenseService = ExpenseService.shared
     @ObservedObject private var insightsService = SpendingInsightsService.shared
+    @ObservedObject private var backgroundAnalysisManager = BackgroundAnalysisManager.shared
     @State private var isAnalyzing = false
-    @State private var showingAlert = false
-    @State private var alertMessage = ""
     
     var body: some View {
         NavigationView {
@@ -38,11 +37,6 @@ struct SpendingInsightsView: View {
             .navigationTitle("AI Insights")
             .navigationBarTitleDisplayMode(.large)
         }
-        .alert("Analysis Result", isPresented: $showingAlert) {
-            Button("OK") { }
-        } message: {
-            Text(alertMessage)
-        }
     }
     
     private var analysisHeader: some View {
@@ -53,33 +47,46 @@ struct SpendingInsightsView: View {
                         Image(systemName: "brain.head.profile")
                             .font(.title2)
                             .foregroundColor(.purple)
-                        Text("AI Analysis")
+                        Text("AI Insights")
                             .font(.title2)
                             .fontWeight(.bold)
+
+                        Spacer()
+
+                        // Background analysis status indicator
+                        analysisStatusIndicator
                     }
-                    
-                    Text("Get personalized insights on your spending patterns and discover opportunities to save money")
+
+                    Text("AI-powered spending analysis automatically updated weekly")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.leading)
                 }
-                Spacer()
             }
-            
-            if !insightsService.hasAnalysis || expenseService.expenses.count > insightsService.lastAnalyzedExpenseCount {
+
+            // Show analysis freshness info
+            if backgroundAnalysisManager.isBackgroundAnalysisAvailable {
+                analysisFreshnessInfo
+            } else if expenseService.expenses.count < 5 {
+                insufficientDataInfo
+            } else {
+                firstAnalysisInfo
+            }
+
+            // Manual refresh option (but still silent)
+            if backgroundAnalysisManager.shouldRefreshAnalysis && backgroundAnalysisManager.isBackgroundAnalysisAvailable {
                 Button(action: {
-                    Task {
-                        await performAnalysis()
-                    }
+                    // Silent refresh in background
+                    backgroundAnalysisManager.forceBackgroundRefresh()
                 }) {
                     HStack {
-                        if isAnalyzing {
+                        if insightsService.isAnalyzing {
                             ProgressView()
                                 .scaleEffect(0.8)
-                            Text("Analyzing spending...")
+                            Text("Updating insights...")
                         } else {
-                            Image(systemName: "sparkles")
-                            Text(insightsService.hasAnalysis ? "Update Analysis" : "Analyze My Spending")
+                            Image(systemName: "arrow.clockwise")
+                            Text("Refresh Analysis")
                         }
                     }
                     .font(.headline)
@@ -108,6 +115,95 @@ struct SpendingInsightsView: View {
         .background(Color(.systemBackground))
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+    }
+
+    // MARK: - Background Analysis Components
+
+    private var analysisStatusIndicator: some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(backgroundAnalysisManager.analysisFreshness.color)
+                .frame(width: 8, height: 8)
+
+            Text(backgroundAnalysisManager.analysisFreshness.rawValue)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color(.systemGray6))
+        .cornerRadius(8)
+    }
+
+    private var analysisFreshnessInfo: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "clock.arrow.circlepath")
+                .foregroundColor(.blue)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Analysis Status")
+                    .font(.caption)
+                    .fontWeight(.medium)
+
+                if let nextRefresh = backgroundAnalysisManager.nextRefreshDescription() {
+                    Text(nextRefresh)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color.blue.opacity(0.1))
+        .cornerRadius(8)
+    }
+
+    private var insufficientDataInfo: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "chart.bar.doc.horizontal")
+                .foregroundColor(.orange)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Insufficient Data")
+                    .font(.caption)
+                    .fontWeight(.medium)
+
+                Text("Add \(5 - expenseService.expenses.count) more expenses for AI analysis")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color.orange.opacity(0.1))
+        .cornerRadius(8)
+    }
+
+    private var firstAnalysisInfo: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "sparkles")
+                .foregroundColor(.purple)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Analysis Starting")
+                    .font(.caption)
+                    .fontWeight(.medium)
+
+                Text("AI insights will appear automatically")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color.purple.opacity(0.1))
+        .cornerRadius(8)
     }
     
     private var quickStatsSection: some View {
