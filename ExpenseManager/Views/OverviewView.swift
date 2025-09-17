@@ -711,22 +711,37 @@ struct OverviewView: View {
     
     private func processSelectedPhotos() async {
         isProcessingReceipts = true
-        
-        let processedCount = await expenseService.processReceiptPhotos(selectedPhotos)
-        
-        selectedPhotos.removeAll()
-        // No need to manually load expenses - the computed properties will automatically update
-        
-        if processedCount > 0 {
-            alertMessage = "Successfully processed \(processedCount) receipt\(processedCount == 1 ? "" : "s") and added to your expenses."
-            // Add haptic feedback for successful processing
-            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-            impactFeedback.impactOccurred()
-        } else {
-            alertMessage = "Failed to process receipts. Please check your API credentials and try again."
+
+        do {
+            let processedCount = await expenseService.processReceiptPhotos(selectedPhotos)
+            selectedPhotos.removeAll()
+
+            if processedCount > 0 {
+                alertMessage = "Successfully processed \(processedCount) receipt\(processedCount == 1 ? "" : "s") and added to your expenses."
+                // Add haptic feedback for successful processing
+                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                impactFeedback.impactOccurred()
+            } else {
+                // Generic fallback - the actual error handling should happen in the service
+                alertMessage = "No receipts could be processed. Please try with clearer images or check your settings."
+            }
+        } catch {
+            // This catch block may not be reached since processReceiptPhotos doesn't throw
+            // But we include it for future-proofing
+            let errorTracker = ErrorTrackingService.shared
+            let context = ReceiptProcessingContext(
+                imageCount: selectedPhotos.count,
+                hasAPIKey: KeychainService.shared.hasValidAPIKey(),
+                attemptNumber: 1
+            )
+
+            let userError = errorTracker.getUserFriendlyErrorMessage(for: error, context: context)
+            alertMessage = userError.fullMessage
+
+            selectedPhotos.removeAll()
         }
+
         showingAlert = true
-        
         isProcessingReceipts = false
     }
 

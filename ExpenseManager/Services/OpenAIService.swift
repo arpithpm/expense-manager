@@ -3,17 +3,42 @@ import UIKit
 
 class OpenAIService {
     static let shared = OpenAIService()
-    private init() {}
+
+    private let logger = LoggingService.shared
+    private let errorTracker = ErrorTrackingService.shared
+
+    private init() {
+        logger.info("OpenAIService initialized", category: .configuration)
+    }
     
     private let baseURL = "https://api.openai.com/v1/chat/completions"
     
     func extractExpenseFromReceipt(_ image: UIImage) async throws -> OpenAIExpenseExtraction {
+        let startTime = Date()
+        let context = ReceiptProcessingContext(
+            imageCount: 1,
+            hasAPIKey: KeychainService.shared.hasValidAPIKey(),
+            attemptNumber: 1
+        )
+
+        logger.logReceiptProcessingStart(
+            imageCount: 1,
+            hasAPIKey: context.hasAPIKey
+        )
+
         guard let imageData = image.jpegData(compressionQuality: 0.8) else {
-            throw ExpenseManagerError.imageProcessingFailed
+            let error = ExpenseManagerError.imageProcessingFailed
+            errorTracker.trackError(error, context: context)
+            throw error
         }
-        
+
         let base64Image = imageData.base64EncodedString()
         let prompt = createExpenseExtractionPrompt()
+
+        logger.info("Processing receipt image", category: .openai, context: [
+            "imageSizeBytes": imageData.count,
+            "compressionQuality": 0.8
+        ])
         
         let requestBody: [String: Any] = [
             "model": "gpt-4o",
@@ -30,7 +55,9 @@ class OpenAIService {
         
         // Use the keychain stored API key
         guard let apiKey = KeychainService.shared.retrieve(for: .openaiKey) else {
-            throw ExpenseManagerError.apiKeyMissing
+            let error = ExpenseManagerError.apiKeyMissing
+            errorTracker.trackError(error, context: context)
+            throw error
         }
         
         guard let url = URL(string: baseURL) else {
@@ -44,53 +71,109 @@ class OpenAIService {
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+            logger.logOpenAIAPICall(requestSize: request.httpBody?.count ?? 0, responseCode: nil)
         } catch {
-            throw OpenAIError.requestEncodingFailed
+            let openAIError = OpenAIError.requestEncodingFailed
+            errorTracker.trackError(openAIError, context: context)
+            throw openAIError
         }
-        
+
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await URLSession.shared.data(for: request)
         } catch {
-            throw ExpenseManagerError.networkError(underlying: error)
+            let networkError = ExpenseManagerError.networkError(underlying: error)
+            errorTracker.trackError(networkError, context: context)
+            throw networkError
         }
         
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw OpenAIError.invalidResponse
+            let error = OpenAIError.invalidResponse
+            errorTracker.trackError(error, context: context)
+            throw error
         }
-        
+
+        // Log API response
+        logger.logOpenAIAPICall(
+            requestSize: request.httpBody?.count ?? 0,
+            responseCode: httpResponse.statusCode,
+            responseSize: data.count
+        )
+
         if httpResponse.statusCode == 401 {
-            throw OpenAIError.invalidAPIKey
+            let error = OpenAIError.invalidAPIKey
+            errorTracker.trackError(error, context: context)
+            throw error
         } else if httpResponse.statusCode != 200 {
             // Log the response body for debugging
             if let responseString = String(data: data, encoding: .utf8) {
-                print("OpenAI API Error (\(httpResponse.statusCode)): \(responseString)")
+                logger.error(
+                    "OpenAI API Error (\(httpResponse.statusCode)): \(responseString)",
+                    category: .openai,
+                    context: [
+                        "statusCode": httpResponse.statusCode,
+                        "responseBody": responseString
+                    ]
+                )
             }
-            throw OpenAIError.apiError(httpResponse.statusCode)
+
+            let error = OpenAIError.apiError(httpResponse.statusCode)
+            errorTracker.trackError(error, context: context)
+            throw error
         }
         
         do {
             let openAIResponse = try JSONDecoder().decode(OpenAIResponse.self, from: data)
             guard let content = openAIResponse.choices.first?.message.content else {
-                throw OpenAIError.noResponseContent
+                let error = OpenAIError.noResponseContent
+                errorTracker.trackError(error, context: context)
+                throw error
             }
-            
+
             // Check if the response was truncated due to token limit
             if let finishReason = openAIResponse.choices.first?.finishReason, finishReason == "length" {
-                print("Warning: OpenAI response was truncated due to token limit")
+                logger.warning("OpenAI response was truncated due to token limit", category: .openai, context: [
+                    "finishReason": finishReason,
+                    "maxTokens": 1000
+                ])
                 // Continue processing but with awareness that it might be incomplete
             }
-            
-            print("OpenAI Response Content: \(content)")
-            return try parseExpenseExtraction(from: content)
+
+            logger.debug("OpenAI Response received", category: .openai, context: [
+                "contentLength": content.count,
+                "responseTime": Date().timeIntervalSince(startTime)
+            ])
+
+            let result = try parseExpenseExtraction(from: content)
+
+            // Log successful processing
+            logger.logReceiptProcessingSuccess(
+                merchant: result.merchant,
+                amount: result.amount,
+                currency: result.currency,
+                processingTime: Date().timeIntervalSince(startTime)
+            )
+
+            errorTracker.trackSuccess()
+            return result
+
         } catch {
             // Log the raw response for debugging
             if let responseString = String(data: data, encoding: .utf8) {
-                print("Raw OpenAI Response: \(responseString)")
+                logger.error("Failed to parse OpenAI response", category: .openai, context: [
+                    "rawResponse": responseString,
+                    "errorType": String(describing: type(of: error))
+                ], error: error)
             }
-            if error is OpenAIError { throw error }
-            print("JSON Parsing Error: \(error)")
-            throw OpenAIError.responseParsingFailed
+
+            if let openAIError = error as? OpenAIError {
+                errorTracker.trackError(openAIError, context: context)
+                throw openAIError
+            }
+
+            let parsingError = OpenAIError.responseParsingFailed
+            errorTracker.trackError(parsingError, context: context)
+            throw parsingError
         }
     }
     
