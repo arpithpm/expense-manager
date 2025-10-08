@@ -28,6 +28,7 @@
 		6E90D212C7704E4AA07B3AC2 /* LoggingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 870F3E9968CA44BAAEAC6FFC /* LoggingService.swift */; };
 		D12248FD72BA4E04BB90E29C /* OpenAIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 466E37B126A245F09AFF60E9 /* OpenAIService.swift */; };
 		F44C56AC18104103ABCB259B /* SpendingInsightsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434F4CFBB76E49CC8AB4237B /* SpendingInsightsService.swift */; };
+		A1B2C3D4E5F6789012345678 /* CurrencyIntelligenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F6789012345678AB /* CurrencyIntelligenceService.swift */; };
 		3797EFB3BB6B47BFA98D4044 /* CoreDataModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB943343410C438788B876CC /* CoreDataModels.swift */; };
 		C1DFB9B278924F0D97AAEE65 /* ExpenseModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90A062F18ABD4326BBAC589F /* ExpenseModels.swift */; };
 		8B4AFA2703F94B18AF88F1EF /* DataResetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CA8277E00F14F20AA08AA36 /* DataResetView.swift */; };
@@ -63,6 +64,7 @@
 		870F3E9968CA44BAAEAC6FFC /* LoggingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoggingService.swift; sourceTree = "<group>"; };
 		466E37B126A245F09AFF60E9 /* OpenAIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIService.swift; sourceTree = "<group>"; };
 		434F4CFBB76E49CC8AB4237B /* SpendingInsightsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpendingInsightsService.swift; sourceTree = "<group>"; };
+		B2C3D4E5F6789012345678AB /* CurrencyIntelligenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyIntelligenceService.swift; sourceTree = "<group>"; };
 		AB943343410C438788B876CC /* CoreDataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataModels.swift; sourceTree = "<group>"; };
 		90A062F18ABD4326BBAC589F /* ExpenseModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpenseModels.swift; sourceTree = "<group>"; };
 		6CA8277E00F14F20AA08AA36 /* DataResetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataResetView.swift; sourceTree = "<group>"; };
@@ -160,6 +162,7 @@
 				870F3E9968CA44BAAEAC6FFC /* LoggingService.swift */,
 				466E37B126A245F09AFF60E9 /* OpenAIService.swift */,
 				434F4CFBB76E49CC8AB4237B /* SpendingInsightsService.swift */,
+				B2C3D4E5F6789012345678AB /* CurrencyIntelligenceService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -261,6 +264,7 @@
 				6E90D212C7704E4AA07B3AC2 /* LoggingService.swift in Sources */,
 				D12248FD72BA4E04BB90E29C /* OpenAIService.swift in Sources */,
 				F44C56AC18104103ABCB259B /* SpendingInsightsService.swift in Sources */,
+				A1B2C3D4E5F6789012345678 /* CurrencyIntelligenceService.swift in Sources */,
 				3797EFB3BB6B47BFA98D4044 /* CoreDataModels.swift in Sources */,
 				C1DFB9B278924F0D97AAEE65 /* ExpenseModels.swift in Sources */,
 				8B4AFA2703F94B18AF88F1EF /* DataResetView.swift in Sources */,
@@ -331,6 +335,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -366,7 +371,7 @@
 				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_HEADER = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
@@ -389,6 +394,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;

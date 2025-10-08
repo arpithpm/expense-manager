@@ -163,6 +163,7 @@ class ExpenseService: ObservableObject {
 
     
     private func createExpenseFromExtraction(_ extraction: OpenAIExpenseExtraction) throws -> Expense {
+        // Enhanced date fallback logic
         var expenseDate = parseDateFromExtraction(extraction.date)
 
         // Validate and fix date if it's incorrectly parsed as 2023 instead of current year
@@ -182,10 +183,34 @@ class ExpenseService: ObservableObject {
             print("Corrected date: \(expenseDate)")
         }
 
-        // Validate currency is supported
-        let validatedCurrency = CurrencyHelper.isSupported(extraction.currency) ? extraction.currency : "USD"
-        if validatedCurrency != extraction.currency {
-            print("Warning: Unsupported currency '\(extraction.currency)', defaulting to USD")
+        // Enhanced currency validation with intelligence service
+        var finalCurrency = extraction.currency
+        
+        // First check if extracted currency is supported
+        if !CurrencyHelper.isSupported(extraction.currency) {
+            print("Warning: Unsupported currency '\(extraction.currency)', using intelligent detection")
+            
+            // Use intelligent currency detection
+            let intelligentCurrency = CurrencyIntelligenceService.shared.intelligentCurrencyDetection(
+                merchant: extraction.merchant,
+                description: extraction.description
+            )
+            finalCurrency = intelligentCurrency
+            
+            print("Intelligent currency detection result: \(intelligentCurrency)")
+        } else {
+            // Even if currency is supported, validate it makes sense for the merchant
+            let (intelligentCurrency, confidence) = CurrencyIntelligenceService.shared.analyzeCurrencyWithConfidence(
+                merchant: extraction.merchant,
+                description: extraction.description
+            )
+            
+            // If we have high confidence in a different currency, suggest it
+            if confidence > 0.8 && intelligentCurrency != extraction.currency {
+                print("Currency confidence check: AI extracted '\(extraction.currency)' but merchant analysis suggests '\(intelligentCurrency)' with confidence \(confidence)")
+                // For now, trust the AI extraction, but log the discrepancy
+                // In future versions, this could prompt user confirmation
+            }
         }
         
         // Convert OpenAI items to ExpenseItems
@@ -204,7 +229,7 @@ class ExpenseService: ObservableObject {
             date: expenseDate,
             merchant: extraction.merchant,
             amount: extraction.amount,
-            currency: validatedCurrency,
+            currency: finalCurrency,
             category: extraction.category,
             description: extraction.description,
             paymentMethod: extraction.paymentMethod,

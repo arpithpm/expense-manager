@@ -189,6 +189,35 @@ class OpenAIService {
 
         FINANCIAL: subtotal, discounts, fees, tip, itemsTotal
 
+        CRITICAL FALLBACK STRATEGIES:
+        
+        DATE FALLBACK (MANDATORY):
+        - If date is unclear, partially visible, damaged, or completely missing: Use TODAY'S DATE in YYYY-MM-DD format
+        - If only partial date visible (e.g., just day/month): Use current year and extract visible parts
+        - If date seems wrong or from distant past/future: Use TODAY'S DATE
+        - NEVER leave date empty or use placeholder dates
+
+        CURRENCY FALLBACK (MANDATORY):
+        - If currency symbol/code is NOT visible or unclear:
+          1. FIRST: Analyze merchant name for known chains:
+             * UK: Tesco, ASDA, Sainsbury's, M&S, Boots → GBP
+             * Germany: REWE, EDEKA, ALDI, Lidl → EUR
+             * US: Walmart, Target, CVS, Starbucks, McDonald's → USD
+             * India: Reliance, Big Bazaar, Spencer's → INR
+             * Canada: Loblaws, Tim Hortons → CAD
+             * Australia: Woolworths, Coles → AUD
+          2. SECOND: Look for location/address clues:
+             * UK postcodes (e.g., SW1A 1AA), .co.uk domains → GBP
+             * German postcodes (5 digits), .de domains → EUR
+             * US ZIP codes, state names → USD
+             * Indian PIN codes (6 digits), Indian cities → INR
+          3. THIRD: Check business context:
+             * VAT numbers, European addresses → EUR
+             * GST, Indian addresses → INR
+             * Sales tax, US addresses → USD
+          4. FINAL: Default to USD only if no clues available
+        - NEVER leave currency empty
+
         CURRENCY RECOGNITION:
         - USD: $, Dollar, United States Dollar
         - EUR: €, Euro, European Euro
@@ -243,7 +272,6 @@ class OpenAIService {
         - UAH: ₴, Ukrainian Hryvnia
         - KZT: ₸, Kazakhstani Tenge
         - UZS: soʻm, Uzbekistani Som
-        - Default to USD if currency cannot be determined
 
         DATE FORMAT HANDLING:
         - CRITICAL: For German date format DD.MM.YY, interpret YY as 20YY (e.g., "25" means "2025")
@@ -270,6 +298,7 @@ class OpenAIService {
         - Ensure financial breakdown adds up
         - Always extract currency symbol/code and convert to standard 3-letter code
         - For amounts with comma as decimal separator (European style), convert to dot format
+        - MANDATORY: Always provide date and currency, using fallback strategies if needed
 
         JSON FORMAT:
         {
@@ -300,6 +329,7 @@ class OpenAIService {
         }
 
         For unclear receipts, set items/breakdown to null and extract basic expense info only.
+        Remember: NEVER return empty date or currency - always use fallback strategies.
         """
     }
     

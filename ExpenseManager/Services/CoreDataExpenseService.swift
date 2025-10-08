@@ -243,23 +243,24 @@ public class CoreDataExpenseService: ObservableObject {
     #endif
     
     private func createExpenseFromExtraction(_ extraction: OpenAIExpenseExtraction) throws -> Expense {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        var expenseDate = dateFormatter.date(from: extraction.date) ?? Date()
+        // Enhanced date parsing with improved fallback logic
+        var expenseDate = parseDateFromExtraction(extraction.date)
         
-        // Validate and fix date if it's incorrectly parsed as 2023 instead of 2025
+        // Validate and fix date if it's incorrectly parsed as 2023 instead of current year
         let calendar = Calendar.current
         let currentYear = calendar.component(.year, from: Date())
         let extractedYear = calendar.component(.year, from: expenseDate)
         
-        // If the extracted date is 2023 but we're in 2025, likely a parsing error
-        if extractedYear == 2023 && currentYear >= 2025 {
+        // If the extracted date is from past years but we're in a later year, likely a parsing error
+        if extractedYear < currentYear - 1 {
+            print("Warning: Date parsed as \(extractedYear), correcting to \(currentYear). Original: \(extraction.date)")
             let components = calendar.dateComponents([.month, .day], from: expenseDate)
             var correctedComponents = DateComponents()
-            correctedComponents.year = 2025
+            correctedComponents.year = currentYear
             correctedComponents.month = components.month
             correctedComponents.day = components.day
             expenseDate = calendar.date(from: correctedComponents) ?? expenseDate
+            print("Corrected date: \(expenseDate)")
         }
         
         // Convert OpenAI items to ExpenseItems
@@ -298,11 +299,40 @@ public class CoreDataExpenseService: ObservableObject {
             sanitizedPaymentMethod = paymentValidation.sanitizedValue
         }
         
+        // Enhanced currency validation with intelligence service
+        var finalCurrency = extraction.currency
+        
+        // First check if extracted currency is supported
+        if !CurrencyHelper.isSupported(extraction.currency) {
+            print("Warning: Unsupported currency '\(extraction.currency)', using intelligent detection")
+            
+            // Use intelligent currency detection
+            let intelligentCurrency = CurrencyIntelligenceService.shared.intelligentCurrencyDetection(
+                merchant: extraction.merchant,
+                description: extraction.description
+            )
+            finalCurrency = intelligentCurrency
+            
+            print("Intelligent currency detection result: \(intelligentCurrency)")
+        } else {
+            // Even if currency is supported, validate it makes sense for the merchant
+            let (intelligentCurrency, confidence) = CurrencyIntelligenceService.shared.analyzeCurrencyWithConfidence(
+                merchant: extraction.merchant,
+                description: extraction.description
+            )
+            
+            // If we have high confidence in a different currency, log the discrepancy
+            if confidence > 0.8 && intelligentCurrency != extraction.currency {
+                print("Currency confidence check: AI extracted '\(extraction.currency)' but merchant analysis suggests '\(intelligentCurrency)' with confidence \(confidence)")
+                // For now, trust the AI extraction, but log the discrepancy
+            }
+        }
+        
         return Expense(
             date: expenseDate,
             merchant: sanitizedMerchant,
             amount: extraction.amount,
-            currency: extraction.currency,
+            currency: finalCurrency,
             category: sanitizedCategory,
             description: sanitizedDescription,
             paymentMethod: sanitizedPaymentMethod,
