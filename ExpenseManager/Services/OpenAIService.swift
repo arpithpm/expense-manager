@@ -6,6 +6,7 @@ class OpenAIService {
 
     private let logger = LoggingService.shared
     private let errorTracker = ErrorTrackingService.shared
+    private let currencyIntelligence = CurrencyIntelligenceService.shared
 
     private init() {
         logger.info("OpenAIService initialized", category: .configuration)
@@ -342,11 +343,13 @@ class OpenAIService {
             .replacingOccurrences(of: "```", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         
-        print("Cleaned content for parsing: \(cleanedContent)")
+        logger.debug("Parsing AI response", category: .openai, context: [
+            "contentLength": cleanedContent.count
+        ])
         
         // Check if the JSON might be truncated (common issue with token limits)
         if !cleanedContent.hasSuffix("}") {
-            print("Warning: JSON appears to be truncated. Attempting to fix...")
+            logger.warning("JSON appears to be truncated. Attempting to fix...", category: .openai)
             
             // Try to fix common truncation issues
             var fixedContent = cleanedContent
@@ -365,7 +368,7 @@ class OpenAIService {
                         fixedContent += "\n}"
                     }
                     
-                    print("Attempted to fix truncated JSON: \(fixedContent)")
+                    logger.info("Fixed truncated JSON", category: .openai)
                 }
             }
             
@@ -373,25 +376,175 @@ class OpenAIService {
         }
         
         guard let jsonData = cleanedContent.data(using: .utf8) else {
-            print("Failed to convert to data")
+            logger.error("Failed to convert response to data", category: .openai)
             throw OpenAIError.responseParsingFailed
         }
         
         do {
             let decoder = JSONDecoder()
-            // Handle potential null values gracefully
-            return try decoder.decode(OpenAIExpenseExtraction.self, from: jsonData)
+            let rawExtraction = try decoder.decode(RawOpenAIExpenseExtraction.self, from: jsonData)
+            
+            // Apply intelligent fallbacks and track corrections
+            return try applyIntelligentFallbacks(to: rawExtraction)
+            
         } catch {
-            print("JSON Decoding Error: \(error)")
+            logger.error("JSON Decoding Error", category: .openai, error: error)
             
             // If we still have parsing issues, try to extract basic expense info without items
             if let basicExpense = tryParseBasicExpense(from: cleanedContent) {
-                print("Falling back to basic expense extraction without items")
+                logger.info("Falling back to basic expense extraction without items", category: .openai)
                 return basicExpense
             }
             
             throw OpenAIError.responseParsingFailed
         }
+    }
+    
+    // Apply intelligent fallbacks and track what was corrected
+    private func applyIntelligentFallbacks(to rawData: RawOpenAIExpenseExtraction) throws -> OpenAIExpenseExtraction {
+        var corrections: [AutomaticCorrection] = []
+        
+        // 1. Date Fallback Logic
+        let finalDate: String
+        let originalDateString = rawData.date
+        
+        if isValidDate(originalDateString) {
+            finalDate = originalDateString
+        } else {
+            // Use current date as fallback
+            let currentDate = Date()
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            finalDate = formatter.string(from: currentDate)
+            
+            let correction = AutomaticCorrection(
+                field: .date,
+                originalValue: originalDateString.isEmpty ? nil : originalDateString,
+                correctedValue: finalDate,
+                reason: originalDateString.isEmpty ? "Date not visible on receipt" : "Date was unclear or invalid"
+            )
+            corrections.append(correction)
+            
+            logger.info("Applied date fallback", category: .openai, context: [
+                "originalDate": originalDateString,
+                "correctedDate": finalDate,
+                "reason": correction.reason
+            ])
+        }
+        
+        // 2. Currency Intelligence Fallback
+        let finalCurrency: String
+        let originalCurrency = rawData.currency
+        
+        // Check if currency needs intelligent correction
+        let intelligentCurrency = currencyIntelligence.intelligentCurrencyDetection(
+            merchant: rawData.merchant,
+            description: rawData.description // Use description as potential address field
+        )
+        
+        if originalCurrency.isEmpty || !CurrencyHelper.isSupported(originalCurrency) {
+            finalCurrency = intelligentCurrency
+            
+            let correction = AutomaticCorrection(
+                field: .currency,
+                originalValue: originalCurrency.isEmpty ? nil : originalCurrency,
+                correctedValue: finalCurrency,
+                reason: "Currency determined from business location and context"
+            )
+            corrections.append(correction)
+            
+            logger.info("Applied currency intelligence fallback", category: .openai, context: [
+                "originalCurrency": originalCurrency,
+                "correctedCurrency": finalCurrency,
+                "merchant": rawData.merchant
+            ])
+        } else {
+            finalCurrency = originalCurrency
+        }
+        
+        // Log all corrections for analytics
+        for correction in corrections {
+            logger.info("Automatic correction applied", category: .analytics, context: [
+                "field": correction.field.rawValue,
+                "originalValue": correction.originalValue ?? "nil",
+                "correctedValue": correction.correctedValue,
+                "reason": correction.reason,
+                "confidence": correction.confidence
+            ])
+        }
+        
+        // Create final extraction with corrections
+        return OpenAIExpenseExtraction(
+            date: finalDate,
+            merchant: rawData.merchant,
+            amount: rawData.amount,
+            currency: finalCurrency,
+            category: rawData.category,
+            description: rawData.description,
+            paymentMethod: rawData.paymentMethod,
+            taxAmount: rawData.taxAmount,
+            confidence: rawData.confidence,
+            items: rawData.items,
+            subtotal: rawData.subtotal,
+            discounts: rawData.discounts,
+            fees: rawData.fees,
+            tip: rawData.tip,
+            itemsTotal: rawData.itemsTotal,
+            appliedCorrections: corrections
+        )
+    }
+    
+    // Helper to validate date strings
+    private func isValidDate(_ dateString: String) -> Bool {
+        guard !dateString.isEmpty else { return false }
+        
+        let dateFormatters = [
+            "yyyy-MM-dd",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS",
+            "yyyy-MM-dd'T'HH:mm:ssZ",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+            "dd/MM/yyyy",
+            "MM/dd/yyyy",
+            "dd.MM.yyyy",
+            "dd-MM-yyyy"
+        ]
+        
+        for formatString in dateFormatters {
+            let formatter = DateFormatter()
+            formatter.dateFormat = formatString
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            
+            if let date = formatter.date(from: dateString) {
+                // Check if date is reasonable (not too far in past/future)
+                let now = Date()
+                let tenYearsAgo = Calendar.current.date(byAdding: .year, value: -10, to: now) ?? now
+                let oneYearFromNow = Calendar.current.date(byAdding: .year, value: 1, to: now) ?? now
+                
+                return date >= tenYearsAgo && date <= oneYearFromNow
+            }
+        }
+        
+        return false
+    }
+    
+    // Raw extraction structure (without corrections)
+    private struct RawOpenAIExpenseExtraction: Codable {
+        let date: String
+        let merchant: String
+        let amount: Double
+        let currency: String
+        let category: String
+        let description: String?
+        let paymentMethod: String?
+        let taxAmount: Double?
+        let confidence: Double
+        let items: [OpenAIExpenseItem]?
+        let subtotal: Double?
+        let discounts: Double?
+        let fees: Double?
+        let tip: Double?
+        let itemsTotal: Double?
     }
     
     // Fallback method to extract basic expense info if item parsing fails

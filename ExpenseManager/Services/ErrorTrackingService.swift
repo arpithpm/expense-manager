@@ -55,13 +55,13 @@ class ErrorTrackingService {
 
         // Update category-specific counts
         switch errorInfo.category {
-        case .apiKey:
+        case .configuration:
             stats.apiKeyErrors += 1
         case .network:
             stats.networkErrors += 1
         case .openai:
             stats.openaiErrors += 1
-        case .imageProcessing:
+        case .validation:
             stats.imageProcessingErrors += 1
         default:
             break
@@ -108,7 +108,7 @@ class ErrorTrackingService {
         stats.consecutiveFailures = 0
         errorStats = stats
 
-        logger.info("Consecutive failure count reset", category: .unknown)
+        logger.info("Consecutive failure count reset", category: .general)
     }
 
     // MARK: - Error Analysis
@@ -127,7 +127,7 @@ class ErrorTrackingService {
         switch error {
         case .missingAPIKey:
             return ErrorInfo(
-                category: .apiKey,
+                category: .configuration,
                 message: "OpenAI API key not found",
                 userMessage: "Please configure your OpenAI API key to process receipts.",
                 suggestions: [
@@ -139,7 +139,7 @@ class ErrorTrackingService {
             
         case .invalidAPIKey:
             return ErrorInfo(
-                category: .apiKey,
+                category: .configuration,
                 message: "OpenAI API key is invalid or expired",
                 userMessage: "API key issue detected. Please check your OpenAI configuration.",
                 suggestions: [
@@ -218,7 +218,7 @@ class ErrorTrackingService {
 
         case .imageProcessingFailed:
             return ErrorInfo(
-                category: .imageProcessing,
+                category: .validation,
                 message: "Failed to process image",
                 userMessage: "Image couldn't be processed. Try with a different photo.",
                 suggestions: [
@@ -261,7 +261,7 @@ class ErrorTrackingService {
 
         case 401:
             return ErrorInfo(
-                category: .apiKey,
+                category: .configuration,
                 message: "OpenAI API authentication failed (401)",
                 userMessage: "Authentication failed. Please check your API key.",
                 suggestions: [
@@ -310,7 +310,7 @@ class ErrorTrackingService {
         switch error {
         case .apiKeyMissing:
             return ErrorInfo(
-                category: .apiKey,
+                category: .configuration,
                 message: "OpenAI API key is missing",
                 userMessage: "Please configure your OpenAI API key to process receipts.",
                 suggestions: [
@@ -322,7 +322,7 @@ class ErrorTrackingService {
 
         case .imageProcessingFailed:
             return ErrorInfo(
-                category: .imageProcessing,
+                category: .validation,
                 message: "Failed to process image data",
                 userMessage: "Image couldn't be processed. Try with a different photo.",
                 suggestions: [
@@ -348,7 +348,7 @@ class ErrorTrackingService {
             
         case .invalidAmount:
             return ErrorInfo(
-                category: .unknown,
+                category: .general,
                 message: "Invalid expense amount",
                 userMessage: "The expense amount is invalid.",
                 suggestions: ["Please check the amount and try again"],
@@ -357,7 +357,7 @@ class ErrorTrackingService {
             
         case .invalidDate:
             return ErrorInfo(
-                category: .unknown,
+                category: .general,
                 message: "Invalid expense date",
                 userMessage: "The expense date is invalid.",
                 suggestions: ["Please check the date and try again"],
@@ -366,7 +366,7 @@ class ErrorTrackingService {
             
         case .dataCorruption:
             return ErrorInfo(
-                category: .unknown,
+                category: .general,
                 message: "Data corruption detected",
                 userMessage: "Some data appears to be corrupted.",
                 suggestions: ["Please try again or contact support"],
@@ -375,7 +375,7 @@ class ErrorTrackingService {
             
         case .persistenceError(let underlying):
             return ErrorInfo(
-                category: .unknown,
+                category: .general,
                 message: "Failed to save data: \(underlying.localizedDescription)",
                 userMessage: "Failed to save your expense.",
                 suggestions: ["Please try again", "Check available storage space"],
@@ -384,7 +384,7 @@ class ErrorTrackingService {
             
         case .invalidExpenseData:
             return ErrorInfo(
-                category: .unknown,
+                category: .general,
                 message: "Invalid expense data",
                 userMessage: "The expense data is invalid.",
                 suggestions: ["Please check all fields and try again"],
@@ -410,7 +410,7 @@ class ErrorTrackingService {
         }
 
         return ErrorInfo(
-            category: .unknown,
+            category: .general,
             message: "Unexpected error: \(error.localizedDescription)",
             userMessage: "An unexpected error occurred. Please try again.",
             suggestions: [
@@ -436,7 +436,7 @@ class ErrorTrackingService {
             suggestions.insert("Multiple failures detected. Consider restarting the app.", at: 0)
         }
 
-        if stats.apiKeyErrors > 5 && errorInfo.category == .apiKey {
+        if stats.apiKeyErrors > 5 && errorInfo.category == .configuration {
             suggestions.append("Frequent API key issues suggest the key may need renewal.")
         }
 
@@ -455,13 +455,13 @@ class ErrorTrackingService {
 
     private func getErrorTitle(for category: LoggingService.ErrorCategory) -> String {
         switch category {
-        case .apiKey:
+        case .configuration:
             return "Configuration Issue"
         case .network:
             return "Connection Problem"
         case .openai:
             return "Processing Error"
-        case .imageProcessing:
+        case .validation:
             return "Image Error"
         default:
             return "Processing Failed"

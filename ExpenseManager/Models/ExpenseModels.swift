@@ -198,6 +198,91 @@ struct OpenAIExpenseExtraction: Codable {
     let fees: Double?
     let tip: Double?
     let itemsTotal: Double?
+    
+    // Automatic correction tracking
+    let appliedCorrections: [AutomaticCorrection]
+    
+    init(date: String, merchant: String, amount: Double, currency: String, category: String, description: String?, paymentMethod: String?, taxAmount: Double?, confidence: Double, items: [OpenAIExpenseItem]?, subtotal: Double?, discounts: Double?, fees: Double?, tip: Double?, itemsTotal: Double?, appliedCorrections: [AutomaticCorrection] = []) {
+        self.date = date
+        self.merchant = merchant
+        self.amount = amount
+        self.currency = currency
+        self.category = category
+        self.description = description
+        self.paymentMethod = paymentMethod
+        self.taxAmount = taxAmount
+        self.confidence = confidence
+        self.items = items
+        self.subtotal = subtotal
+        self.discounts = discounts
+        self.fees = fees
+        self.tip = tip
+        self.itemsTotal = itemsTotal
+        self.appliedCorrections = appliedCorrections
+    }
+}
+
+// MARK: - Automatic Correction Tracking
+
+struct AutomaticCorrection: Codable {
+    let field: CorrectionField
+    let originalValue: String?
+    let correctedValue: String
+    let reason: String
+    let confidence: Double
+    let timestamp: Date
+    
+    init(field: CorrectionField, originalValue: String?, correctedValue: String, reason: String, confidence: Double = 1.0) {
+        self.field = field
+        self.originalValue = originalValue
+        self.correctedValue = correctedValue
+        self.reason = reason
+        self.confidence = confidence
+        self.timestamp = Date()
+    }
+}
+
+enum CorrectionField: String, Codable {
+    case date
+    case currency
+    case merchant
+    case amount
+    case category
+}
+
+extension AutomaticCorrection {
+    var userFriendlyMessage: String {
+        switch field {
+        case .date:
+            if let original = originalValue {
+                return "Date was unclear (\(original)), used \(correctedValue)"
+            } else {
+                return "Date was not visible, used today's date (\(correctedValue))"
+            }
+        case .currency:
+            if let original = originalValue {
+                return "Currency changed from \(original) to \(correctedValue) based on business location"
+            } else {
+                return "Currency determined from business location: \(correctedValue)"
+            }
+        case .merchant:
+            return "Merchant name corrected: \(correctedValue)"
+        case .amount:
+            return "Amount corrected: \(correctedValue)"
+        case .category:
+            return "Category assigned: \(correctedValue)"
+        }
+    }
+    
+    var icon: String {
+        switch field {
+        case .date: return "calendar.badge.exclamationmark"
+        case .currency: return "globe.badge.chevron.backward"
+        case .merchant: return "building.2.crop.circle.badge.plus"
+        case .amount: return "dollarsign.circle.fill"
+        case .category: return "tag.circle.fill"
+        }
+    }
 }
 
 struct OpenAIExpenseItem: Codable {

@@ -31,15 +31,16 @@ class LoggingService {
 
     // Error categories for better tracking
     enum ErrorCategory: String, CaseIterable {
-        case apiKey = "API_KEY"
-        case network = "NETWORK"
-        case openai = "OPENAI"
-        case imageProcessing = "IMAGE_PROCESSING"
-        case dataStorage = "DATA_STORAGE"
-        case userInput = "USER_INPUT"
-        case configuration = "CONFIGURATION"
-        case performance = "PERFORMANCE"
-        case unknown = "UNKNOWN"
+        case general = "general"
+        case openai = "openai"
+        case network = "network"
+        case configuration = "configuration"
+        case persistence = "persistence"
+        case validation = "validation"
+        case ui = "ui"
+        case background = "background"
+        case performance = "performance"
+        case analytics = "analytics"
     }
 
     private init() {
@@ -60,19 +61,19 @@ class LoggingService {
 
     // MARK: - Public Logging Methods
 
-    func debug(_ message: String, category: ErrorCategory = .unknown, context: [String: Any]? = nil) {
+    func debug(_ message: String, category: ErrorCategory = .general, context: [String: Any]? = nil) {
         log(message, level: .debug, category: category, context: context)
     }
 
-    func info(_ message: String, category: ErrorCategory = .unknown, context: [String: Any]? = nil) {
+    func info(_ message: String, category: ErrorCategory = .general, context: [String: Any]? = nil) {
         log(message, level: .info, category: category, context: context)
     }
 
-    func warning(_ message: String, category: ErrorCategory = .unknown, context: [String: Any]? = nil) {
+    func warning(_ message: String, category: ErrorCategory = .general, context: [String: Any]? = nil) {
         log(message, level: .warning, category: category, context: context)
     }
 
-    func error(_ message: String, category: ErrorCategory = .unknown, context: [String: Any]? = nil, error: Error? = nil) {
+    func error(_ message: String, category: ErrorCategory = .general, context: [String: Any]? = nil, error: Error? = nil) {
         var contextWithError = context ?? [:]
         if let error = error {
             contextWithError["error"] = error.localizedDescription
@@ -81,7 +82,7 @@ class LoggingService {
         log(message, level: .error, category: category, context: contextWithError)
     }
 
-    func critical(_ message: String, category: ErrorCategory = .unknown, context: [String: Any]? = nil, error: Error? = nil) {
+    func critical(_ message: String, category: ErrorCategory = .general, context: [String: Any]? = nil, error: Error? = nil) {
         var contextWithError = context ?? [:]
         if let error = error {
             contextWithError["error"] = error.localizedDescription
@@ -120,12 +121,12 @@ class LoggingService {
             category = .openai
             errorContext["openaiErrorType"] = String(describing: openAIError)
         } else if let expenseError = error as? ExpenseManagerError {
-            category = .apiKey // Most ExpenseManagerErrors are API key related
+            category = .configuration // Most ExpenseManagerErrors are API key related
             errorContext["expenseErrorType"] = String(describing: expenseError)
         } else if error.localizedDescription.contains("network") || error.localizedDescription.contains("connection") {
             category = .network
         } else {
-            category = .unknown
+            category = .general
         }
 
         self.error("Receipt processing failed", category: category, context: errorContext, error: error)
@@ -303,7 +304,7 @@ class LoggingService {
             try exportContent.write(to: exportURL, atomically: true, encoding: .utf8)
             return exportURL
         } catch {
-            self.error("Failed to export logs", category: .dataStorage, error: error)
+            self.error("Failed to export logs", category: .persistence, error: error)
             return nil
         }
     }

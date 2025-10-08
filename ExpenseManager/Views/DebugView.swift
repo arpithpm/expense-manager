@@ -208,10 +208,10 @@ struct DebugView: View {
     }
 
     private func testLogging() {
-        logger.debug("Debug log test", category: .unknown)
-        logger.info("Info log test", category: .configuration)
-        logger.warning("Warning log test", category: .performance)
-        logger.error("Error log test", category: .unknown)
+        logger.debug("Debug log test", category: .general)
+        
+        // Test error logging
+        logger.error("Error log test", category: .general)
 
         refreshStats()
     }

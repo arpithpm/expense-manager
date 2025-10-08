@@ -162,7 +162,7 @@ class BackgroundAnalysisManager: ObservableObject {
                 lastBackgroundUpdate = updateTimestamp
             }
 
-            logger.info("Loaded cached AI analysis", category: .dataStorage, context: [
+            logger.info("Loaded cached AI analysis", category: .persistence, context: [
                 "savingsCount": insights.savingsOpportunities.count,
                 "cacheAge": lastBackgroundUpdate?.timeIntervalSinceNow ?? 0
             ])
@@ -176,12 +176,12 @@ class BackgroundAnalysisManager: ObservableObject {
             UserDefaults.standard.set(Date(), forKey: lastUpdateKey)
             UserDefaults.standard.set(expenseService.expenses.count, forKey: lastExpenseCountKey)
 
-            logger.debug("Cached AI analysis results", category: .dataStorage, context: [
+            logger.debug("Cached AI analysis results", category: .persistence, context: [
                 "dataSize": data.count,
                 "expenseCount": expenseService.expenses.count
             ])
         } catch {
-            logger.error("Failed to cache analysis results", category: .dataStorage, error: error)
+            logger.error("Failed to cache analysis results", category: .persistence, error: error)
         }
     }
 
@@ -194,7 +194,7 @@ class BackgroundAnalysisManager: ObservableObject {
         lastBackgroundUpdate = nil
         insightsService.currentInsights = nil
 
-        logger.info("Cleared AI analysis cache", category: .dataStorage)
+        logger.info("Cleared AI analysis cache", category: .persistence)
     }
 
     // MARK: - Observers

@@ -18,6 +18,8 @@ struct OverviewView: View {
     @State private var alertMessage = ""
     @State private var expenseToDelete: Expense?
     @State private var showingDeleteConfirmation = false
+    @State private var appliedCorrections: [AutomaticCorrection] = []
+    @State private var showingCorrectionAlert = false
     
     // Animation states
     @State private var shimmerOffset: CGFloat = -1
@@ -299,6 +301,31 @@ struct OverviewView: View {
         }
         .sheet(isPresented: $showingDocumentPicker) {
             DocumentPicker(selectedDocuments: $selectedDocuments)
+        }
+        .alert("Automatic Corrections Applied", isPresented: $showingCorrectionAlert) {
+            Button("OK") {
+                appliedCorrections.removeAll()
+            }
+        } message: {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("The following automatic corrections were made:")
+                
+                ForEach(appliedCorrections.prefix(5), id: \.timestamp) { correction in
+                    HStack(spacing: 8) {
+                        Image(systemName: correction.icon)
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                        Text(correction.userFriendlyMessage)
+                            .font(.caption)
+                    }
+                }
+                
+                if appliedCorrections.count > 5 {
+                    Text("...and \(appliedCorrections.count - 5) more corrections")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
         }
         .onChange(of: selectedPhotos) { oldValue, newValue in
             if !newValue.isEmpty {
@@ -712,20 +739,33 @@ struct OverviewView: View {
     private func processSelectedPhotos() async {
         isProcessingReceipts = true
 
-        let processedCount = await expenseService.processReceiptPhotos(selectedPhotos)
+        let result = await expenseService.processReceiptPhotosWithCorrections(selectedPhotos)
         selectedPhotos.removeAll()
 
-        if processedCount > 0 {
-            alertMessage = "Successfully processed \(processedCount) receipt\(processedCount == 1 ? "" : "s") and added to your expenses."
+        if result.processedCount > 0 {
+            appliedCorrections = result.allCorrections
+            
+            var message = "Successfully processed \(result.processedCount) receipt\(result.processedCount == 1 ? "" : "s") and added to your expenses."
+            
+            if !result.allCorrections.isEmpty {
+                let correctionCount = result.allCorrections.count
+                message += "\n\n\(correctionCount) automatic correction\(correctionCount == 1 ? "" : "s") were applied - tap to review."
+                showingCorrectionAlert = true
+            } else {
+                showingAlert = true
+            }
+            
+            alertMessage = message
+            
             // Add haptic feedback for successful processing
             let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
             impactFeedback.impactOccurred()
         } else {
             // Generic fallback - the actual error handling should happen in the service
             alertMessage = "No receipts could be processed. Please try with clearer images or check your settings."
+            showingAlert = true
         }
 
-        showingAlert = true
         isProcessingReceipts = false
     }
 

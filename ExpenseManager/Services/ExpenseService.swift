@@ -40,7 +40,13 @@ class ExpenseService: ObservableObject {
     }
     
     func processReceiptPhotos(_ photoItems: [PhotosPickerItem]) async -> Int {
+        let result = await processReceiptPhotosWithCorrections(photoItems)
+        return result.processedCount
+    }
+    
+    func processReceiptPhotosWithCorrections(_ photoItems: [PhotosPickerItem]) async -> (processedCount: Int, allCorrections: [AutomaticCorrection]) {
         var processedCount = 0
+        var allCorrections: [AutomaticCorrection] = []
 
         for photoItem in photoItems {
             do {
@@ -61,10 +67,19 @@ class ExpenseService: ObservableObject {
                             let extractedData = try await openAIService.extractExpenseFromReceipt(image)
                             let expense = try createExpenseFromExtraction(extractedData)
 
-                            // Save expense locally
-                            _ = try addExpense(expense)
+                            // Collect corrections from this extraction
+                            allCorrections.append(contentsOf: extractedData.appliedCorrections)
 
-                            processedCount += 1
+                            // Save expense locally - ensure UI updates happen on main thread
+                            await MainActor.run {
+                                do {
+                                    _ = try addExpense(expense)
+                                    processedCount += 1
+                                } catch {
+                                    print("Failed to add expense: \(error)")
+                                    self.errorMessage = "Failed to save expense: \(error.localizedDescription)"
+                                }
+                            }
                         }
                     }
                 } else {
@@ -75,38 +90,48 @@ class ExpenseService: ObservableObject {
                         let extractedData = try await openAIService.extractExpenseFromReceipt(image)
                         let expense = try createExpenseFromExtraction(extractedData)
 
-                        // Save expense locally
-                        _ = try addExpense(expense)
+                        // Collect corrections from this extraction
+                        allCorrections.append(contentsOf: extractedData.appliedCorrections)
 
-                        processedCount += 1
+                        // Save expense locally - ensure UI updates happen on main thread
+                        await MainActor.run {
+                            do {
+                                _ = try addExpense(expense)
+                                processedCount += 1
+                            } catch {
+                                print("Failed to add expense: \(error)")
+                                self.errorMessage = "Failed to save expense: \(error.localizedDescription)"
+                            }
+                        }
                     }
                 }
             } catch {
                 print("Failed to process photo: \(error)")
-                // Provide more specific error messages based on error type
-                if let openAIError = error as? OpenAIError {
-                    switch openAIError {
-                    case .invalidAPIKey:
-                        errorMessage = "Invalid OpenAI API key. Please check your credentials."
-                    case .apiError(let code):
-                        errorMessage = "OpenAI API error (Status \(code)). Check your API key and quota."
-                    case .missingAPIKey:
-                        errorMessage = "OpenAI API key not found. Please configure in settings."
-                    case .responseParsingFailed:
-                        errorMessage = "Failed to parse receipt data. The response may be incomplete - try a clearer image or simpler receipt."
-                    case .responseTruncated:
-                        errorMessage = "Receipt has too many items for processing. Try processing a simpler receipt."
-                    default:
-                        errorMessage = "OpenAI processing failed: \(openAIError.localizedDescription)"
+                // Provide more specific error messages based on error type - ensure UI updates on main thread
+                await MainActor.run {
+                    if let openAIError = error as? OpenAIError {
+                        switch openAIError {
+                        case .invalidAPIKey:
+                            self.errorMessage = "Invalid OpenAI API key. Please check your credentials."
+                        case .apiError(let code):
+                            self.errorMessage = "OpenAI API error (Status \(code)). Check your API key and quota."
+                        case .missingAPIKey:
+                            self.errorMessage = "OpenAI API key not found. Please configure in settings."
+                        case .responseParsingFailed:
+                            self.errorMessage = "Failed to parse receipt data. The response may be incomplete - try a clearer image or simpler receipt."
+                        case .responseTruncated:
+                            self.errorMessage = "Receipt has too many items for processing. Try processing a simpler receipt."
+                        default:
+                            self.errorMessage = "OpenAI processing failed: \(openAIError.localizedDescription)"
+                        }
+                    } else {
+                        self.errorMessage = "Processing failed: \(error.localizedDescription)"
                     }
-                } else {
-                    errorMessage = "Processing failed: \(error.localizedDescription)"
                 }
             }
         }
         
-        
-        return processedCount
+        return (processedCount: processedCount, allCorrections: allCorrections)
     }
 
     func processDocuments(_ documentURLs: [URL]) async -> Int {
