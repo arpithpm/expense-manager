@@ -9,7 +9,7 @@ import CoreData
 
 struct OverviewView: View {
     @EnvironmentObject var configurationManager: ConfigurationManager
-    @ObservedObject private var expenseService = ExpenseService.shared
+    @ObservedObject private var expenseService = CoreDataExpenseService.shared
     @State private var selectedPhotos: [PhotosPickerItem] = []
     @State private var selectedDocuments: [URL] = []
     @State private var showingDocumentPicker = false
@@ -46,7 +46,7 @@ struct OverviewView: View {
     @State private var photoSelectionOffset: CGFloat = 0
     
     private var recentExpenses: [Expense] {
-        Array(expenseService.expenses.sorted { $0.date > $1.date }.prefix(5))
+        return Array(expenseService.expenses.sorted { $0.date > $1.date }.prefix(5))
     }
     
     // Animation functions
@@ -721,8 +721,8 @@ struct OverviewView: View {
                 }
                 .padding(.vertical, 32)
             } else {
-                LazyVStack(spacing: 12) {
-                    ForEach(recentExpenses.prefix(5)) { expense in
+                VStack(spacing: 8) {
+                    ForEach(recentExpenses) { expense in
                         ExpenseRowView(expense: expense) {
                             deleteExpense(expense)
                         }
@@ -739,23 +739,13 @@ struct OverviewView: View {
     private func processSelectedPhotos() async {
         isProcessingReceipts = true
 
-        let result = await expenseService.processReceiptPhotosWithCorrections(selectedPhotos)
+        let processedCount = await expenseService.processReceiptPhotos(selectedPhotos)
         selectedPhotos.removeAll()
 
-        if result.processedCount > 0 {
-            appliedCorrections = result.allCorrections
-            
-            var message = "Successfully processed \(result.processedCount) receipt\(result.processedCount == 1 ? "" : "s") and added to your expenses."
-            
-            if !result.allCorrections.isEmpty {
-                let correctionCount = result.allCorrections.count
-                message += "\n\n\(correctionCount) automatic correction\(correctionCount == 1 ? "" : "s") were applied - tap to review."
-                showingCorrectionAlert = true
-            } else {
-                showingAlert = true
-            }
-            
+        if processedCount > 0 {
+            let message = "Successfully processed \(processedCount) receipt\(processedCount == 1 ? "" : "s") and added to your expenses."
             alertMessage = message
+            showingAlert = true
             
             // Add haptic feedback for successful processing
             let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
@@ -1283,7 +1273,6 @@ struct ExpenseRowView: View {
         .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: Color.black.opacity(0.05), radius: 1, x: 0, y: 1)
-        .id("expense-\(expense.id)-\(showingItemDetails)")
     }
     
     private func categoryIcon(for category: String) -> String {
@@ -1324,7 +1313,7 @@ enum ExpenseSortOption: String, CaseIterable {
 
 struct AllExpensesView: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject private var expenseService = ExpenseService.shared
+    @ObservedObject private var expenseService = CoreDataExpenseService.shared
     @State private var expenseToDelete: Expense?
     @State private var showingDeleteConfirmation = false
     @State private var searchText = ""

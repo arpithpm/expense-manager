@@ -21,6 +21,7 @@ class ExpenseService: ObservableObject {
     private let expensesKey = "SavedExpenses"
     private let lastBackupKey = "LastBackupDate"
     private let firstLaunchKey = "HasLaunchedBefore"
+    private var cancellables = Set<AnyCancellable>()
 
     @Published var expenses: [Expense] = []
     @Published var isLoading = false
@@ -37,6 +38,29 @@ class ExpenseService: ObservableObject {
         self.expenses = coreDataService.expenses
         self.isLoading = coreDataService.isLoading
         self.errorMessage = coreDataService.errorMessage
+        
+        // Set up Combine subscription to automatically sync when CoreDataExpenseService data changes
+        // Use sink instead of assign to avoid potential retain cycles and ensure proper cleanup
+        coreDataService.$expenses
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] expenses in
+                self?.expenses = expenses
+            }
+            .store(in: &cancellables)
+            
+        coreDataService.$isLoading
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] isLoading in
+                self?.isLoading = isLoading
+            }
+            .store(in: &cancellables)
+            
+        coreDataService.$errorMessage
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] errorMessage in
+                self?.errorMessage = errorMessage
+            }
+            .store(in: &cancellables)
     }
     
     func processReceiptPhotos(_ photoItems: [PhotosPickerItem]) async -> Int {
@@ -45,8 +69,21 @@ class ExpenseService: ObservableObject {
     }
     
     func processReceiptPhotosWithCorrections(_ photoItems: [PhotosPickerItem]) async -> (processedCount: Int, allCorrections: [AutomaticCorrection]) {
-        var processedCount = 0
-        var allCorrections: [AutomaticCorrection] = []
+        // Use actor to manage shared state safely
+        actor ProcessingState {
+            private(set) var processedCount = 0
+            private(set) var allCorrections: [AutomaticCorrection] = []
+            
+            func incrementProcessedCount() {
+                processedCount += 1
+            }
+            
+            func addCorrections(_ corrections: [AutomaticCorrection]) {
+                allCorrections.append(contentsOf: corrections)
+            }
+        }
+        
+        let processingState = ProcessingState()
 
         for photoItem in photoItems {
             do {
@@ -68,18 +105,21 @@ class ExpenseService: ObservableObject {
                             let expense = try createExpenseFromExtraction(extractedData)
 
                             // Collect corrections from this extraction
-                            allCorrections.append(contentsOf: extractedData.appliedCorrections)
+                            await processingState.addCorrections(extractedData.appliedCorrections)
 
                             // Save expense locally - ensure UI updates happen on main thread
                             await MainActor.run {
                                 do {
                                     _ = try addExpense(expense)
-                                    processedCount += 1
                                 } catch {
                                     print("Failed to add expense: \(error)")
                                     self.errorMessage = "Failed to save expense: \(error.localizedDescription)"
+                                    return
                                 }
                             }
+                            
+                            // Update processed count after successful save
+                            await processingState.incrementProcessedCount()
                         }
                     }
                 } else {
@@ -91,18 +131,21 @@ class ExpenseService: ObservableObject {
                         let expense = try createExpenseFromExtraction(extractedData)
 
                         // Collect corrections from this extraction
-                        allCorrections.append(contentsOf: extractedData.appliedCorrections)
+                        await processingState.addCorrections(extractedData.appliedCorrections)
 
                         // Save expense locally - ensure UI updates happen on main thread
                         await MainActor.run {
                             do {
                                 _ = try addExpense(expense)
-                                processedCount += 1
                             } catch {
                                 print("Failed to add expense: \(error)")
                                 self.errorMessage = "Failed to save expense: \(error.localizedDescription)"
+                                return
                             }
                         }
+                        
+                        // Update processed count after successful save
+                        await processingState.incrementProcessedCount()
                     }
                 }
             } catch {
@@ -131,7 +174,11 @@ class ExpenseService: ObservableObject {
             }
         }
         
-        return (processedCount: processedCount, allCorrections: allCorrections)
+        // Get final results from the actor
+        let finalProcessedCount = await processingState.processedCount
+        let finalCorrections = await processingState.allCorrections
+        
+        return (processedCount: finalProcessedCount, allCorrections: finalCorrections)
     }
 
     func processDocuments(_ documentURLs: [URL]) async -> Int {
@@ -349,11 +396,17 @@ class ExpenseService: ObservableObject {
     }
 
     func fetchRecentExpenses(limit: Int = 10) async throws -> [Expense] {
-        isLoading = true
-        errorMessage = nil
+        await MainActor.run {
+            isLoading = true
+            errorMessage = nil
+        }
         
         let recentExpenses = Array(expenses.sorted { $0.date > $1.date }.prefix(limit))
-        isLoading = false
+        
+        await MainActor.run {
+            isLoading = false
+        }
+        
         return recentExpenses
     }
     
@@ -466,35 +519,15 @@ class ExpenseService: ObservableObject {
     }
     
     func addExpense(_ expense: Expense) throws -> Expense {
-        // Validate expense data
-        guard expense.amount > 0 else {
-            throw ExpenseManagerError.invalidAmount
-        }
-        
-        guard expense.date <= Date() else {
-            throw ExpenseManagerError.invalidDate
-        }
-        
-        guard !expense.merchant.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw ExpenseManagerError.invalidExpenseData
-        }
-        
-        expenses.append(expense)
-        
-        do {
-            try saveExpensesToUserDefaults()
-        } catch {
-            // Remove the expense if saving failed
-            expenses.removeAll { $0.id == expense.id }
-            throw ExpenseManagerError.persistenceError(underlying: error)
-        }
-        
-        return expense
+        // Delegate to CoreDataExpenseService for actual persistence
+        // The Combine subscription will automatically update our local expenses array
+        return try CoreDataExpenseService.shared.addExpense(expense)
     }
     
     func deleteExpense(_ expense: Expense) throws {
-        expenses.removeAll { $0.id == expense.id }
-        try saveExpensesToUserDefaults()
+        // Delegate to CoreDataExpenseService for actual deletion  
+        // The Combine subscription will automatically update our local expenses array
+        try CoreDataExpenseService.shared.deleteExpense(expense)
     }
     
     // MARK: - Backup Status Methods
@@ -553,10 +586,9 @@ class ExpenseService: ObservableObject {
     }
     
     func clearDemoData() {
-        expenses.removeAll { expense in
-            ExpenseService.sampleMerchants.contains(expense.merchant)
-        }
-        try? saveExpensesToUserDefaults()
+        // Delegate to CoreDataExpenseService for actual deletion
+        // The Combine subscription will automatically update our local expenses array
+        CoreDataExpenseService.shared.clearDemoData()
     }
     
     // MARK: - Sample Data for First Launch

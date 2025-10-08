@@ -354,7 +354,18 @@ public class CoreDataExpenseService: ObservableObject {
         
         do {
             let entities = try coreDataManager.viewContext.fetch(request)
-            expenses = entities.map { $0.toExpense() }
+            let mappedExpenses = entities.map { $0.toExpense() }
+            
+            // Deduplicate by ID to prevent duplicate entries in UI
+            var seenIds = Set<UUID>()
+            expenses = mappedExpenses.filter { expense in
+                if seenIds.contains(expense.id) {
+                    print("Warning: Duplicate expense found with ID \(expense.id) for merchant \(expense.merchant)")
+                    return false
+                }
+                seenIds.insert(expense.id)
+                return true
+            }
         } catch {
             errorMessage = "Failed to load expenses: \(error.localizedDescription)"
             // Handle Core Data fetch error silently in production
@@ -362,6 +373,21 @@ public class CoreDataExpenseService: ObservableObject {
     }
     
     func addExpense(_ expense: Expense) throws -> Expense {
+        // Check if expense with this ID already exists
+        let context = coreDataManager.viewContext
+        let existingRequest: NSFetchRequest<ExpenseEntity> = ExpenseEntity.fetchRequest()
+        existingRequest.predicate = NSPredicate(format: "id == %@", expense.id as CVarArg)
+        
+        do {
+            let existingEntities = try context.fetch(existingRequest)
+            if !existingEntities.isEmpty {
+                print("Warning: Expense with ID \(expense.id) already exists, skipping duplicate")
+                return expense // Return existing expense instead of creating duplicate
+            }
+        } catch {
+            print("Error checking for existing expense: \(error)")
+        }
+        
         // Validate expense data using InputValidator
         let amountValidation = InputValidator.validateAmount(String(expense.amount))
         guard amountValidation.isValid else {
@@ -396,7 +422,6 @@ public class CoreDataExpenseService: ObservableObject {
             }
         }
         
-        let context = coreDataManager.viewContext
         let entity = ExpenseEntity(context: context)
         entity.updateFromExpense(expense, context: context)
         

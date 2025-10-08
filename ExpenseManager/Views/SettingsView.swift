@@ -8,7 +8,7 @@ import CoreData
 
 struct SettingsView: View {
     @EnvironmentObject var configurationManager: ConfigurationManager
-    @ObservedObject private var expenseService = ExpenseService.shared
+    @ObservedObject private var expenseService = CoreDataExpenseService.shared
     @State private var showingConfigurationSheet = false
     @State private var showingClearAlert = false
     @State private var showingSuccessAlert = false
@@ -1047,7 +1047,7 @@ struct DataResetView: View {
 // MARK: - Data Export View
 struct DataExportView: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject private var expenseService = ExpenseService.shared
+    @ObservedObject private var expenseService = CoreDataExpenseService.shared
     @State private var selectedFormat: ExportFormat = .csv
     @State private var selectedDateRange: DateRangeOption = .allTime
     @State private var customStartDate = Date()
