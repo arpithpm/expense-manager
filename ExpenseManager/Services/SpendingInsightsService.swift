@@ -14,7 +14,7 @@ class SpendingInsightsService: ObservableObject {
     }
     
     var lastAnalysisDate: Date? {
-        currentInsights?.analysisDate
+        currentInsights?.generatedAt
     }
     
     var lastAnalyzedExpenseCount: Int = 0

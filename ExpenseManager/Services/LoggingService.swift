@@ -181,7 +181,6 @@ class LoggingService {
     }
 
     private func writeToFile(_ entry: String) {
-        let today = DateFormatter().string(from: Date())
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
 

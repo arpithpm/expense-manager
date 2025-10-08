@@ -1,7 +1,8 @@
 import Foundation
+import SwiftUI
 import Combine
-import PhotosUI
 import UIKit
+import PhotosUI
 import CoreData
 import PDFKit
 import UniformTypeIdentifiers
@@ -54,7 +55,7 @@ class ExpenseService: ObservableObject {
                 if isPDF {
                     // Process PDF
                     if let pdfData = try await loadData(from: photoItem),
-                       let images = convertPDFToImages(pdfData) {
+                       let images = convertPDFToImages(from: pdfData) {
 
                         for image in images {
                             let extractedData = try await openAIService.extractExpenseFromReceipt(image)
@@ -122,6 +123,42 @@ class ExpenseService: ObservableObject {
                 }
             }
         }
+    }
+    
+    // PDF to Images conversion utility
+    private func convertPDFToImages(from pdfData: Data) -> [UIImage]? {
+        guard let pdfDocument = PDFDocument(data: pdfData) else {
+            print("Failed to create PDF document from data")
+            return nil
+        }
+        
+        var images: [UIImage] = []
+        let pageCount = pdfDocument.pageCount
+        
+        for pageIndex in 0..<pageCount {
+            guard let page = pdfDocument.page(at: pageIndex) else {
+                print("Failed to get page \(pageIndex) from PDF")
+                continue
+            }
+            
+            let pageRect = page.bounds(for: .mediaBox)
+            let renderer = UIGraphicsImageRenderer(size: pageRect.size)
+            
+            let image = renderer.image { context in
+                UIColor.white.set()
+                context.fill(pageRect)
+                
+                context.cgContext.translateBy(x: 0.0, y: pageRect.size.height)
+                context.cgContext.scaleBy(x: 1.0, y: -1.0)
+                
+                page.draw(with: .mediaBox, to: context.cgContext)
+            }
+            
+            images.append(image)
+        }
+        
+        print("Converted PDF to \(images.count) images")
+        return images.isEmpty ? nil : images
     }
 
     

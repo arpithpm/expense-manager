@@ -8,6 +8,8 @@ struct SpendingInsightsView: View {
     @ObservedObject private var insightsService = SpendingInsightsService.shared
     @ObservedObject private var backgroundAnalysisManager = BackgroundAnalysisManager.shared
     @State private var isAnalyzing = false
+    @State private var showingAlert = false
+    @State private var alertMessage = ""
     
     var body: some View {
         NavigationView {

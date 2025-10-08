@@ -225,40 +225,6 @@ struct OpenAIResponse: Codable {
     }
 }
 
-enum OpenAIError: LocalizedError {
-    case invalidAPIKey
-    case networkError(Error)
-    case decodingError(Error)
-    case invalidResponse
-    case rateLimitExceeded
-    case insufficientTokens
-    case modelNotAvailable
-    case imageProcessingFailed
-    case invalidImageFormat
-    
-    var errorDescription: String? {
-        switch self {
-        case .invalidAPIKey:
-            return "Invalid OpenAI API key"
-        case .networkError(let error):
-            return "Network error: \(error.localizedDescription)"
-        case .decodingError(let error):
-            return "Failed to decode response: \(error.localizedDescription)"
-        case .invalidResponse:
-            return "Invalid response from OpenAI"
-        case .rateLimitExceeded:
-            return "API rate limit exceeded"
-        case .insufficientTokens:
-            return "Insufficient tokens in your account"
-        case .modelNotAvailable:
-            return "The requested model is not available"
-        case .imageProcessingFailed:
-            return "Failed to process the image"
-        case .invalidImageFormat:
-            return "Unsupported image format"
-        }
-    }
-}
 
 // MARK: - Backup and Export Models
 

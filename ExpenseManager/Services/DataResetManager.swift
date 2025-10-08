@@ -59,25 +59,33 @@ class DataResetManager: ObservableObject {
     }
     
     @MainActor
-    private func resetCategory(_ category: ResetCategory, expenseService: ExpenseService) async throws {
+    private func resetCategory(_ category: ResetCategory, expenseService: CoreDataExpenseService) async throws {
         switch category {
         case .allExpenses:
-            expenseService.expenses.removeAll()
-            try? expenseService.saveExpensesToUserDefaults()
+            // Delete all expenses one by one
+            let allExpenses = expenseService.expenses
+            for expense in allExpenses {
+                try expenseService.deleteExpense(expense)
+            }
             
         case .sampleExpenses:
-            expenseService.expenses.removeAll { expense in
+            // Get sample expenses and delete them
+            let sampleExpenses = expenseService.expenses.filter { expense in
                 ExpenseService.sampleMerchants.contains(expense.merchant)
             }
-            try? expenseService.saveExpensesToUserDefaults()
+            for expense in sampleExpenses {
+                try expenseService.deleteExpense(expense)
+            }
             
         case .openAIKey:
             try keychainService.deleteAPIKey()
             
         case .completeReset:
-            // Reset everything
-            expenseService.expenses.removeAll()
-            try? expenseService.saveExpensesToUserDefaults()
+            // Reset everything - delete all expenses one by one
+            let allExpenses = expenseService.expenses
+            for expense in allExpenses {
+                try expenseService.deleteExpense(expense)
+            }
             try? keychainService.deleteAPIKey()
             
             // Clear all UserDefaults for this app

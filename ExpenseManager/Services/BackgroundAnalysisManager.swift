@@ -121,7 +121,7 @@ class BackgroundAnalysisManager: ObservableObject {
             let duration = Date().timeIntervalSince(startTime)
             logger.info("Background AI analysis completed successfully", category: .performance, context: [
                 "duration": duration,
-                "totalSavings": insights.totalPotentialSavings,
+                "totalSavings": insights.savingsOpportunities.reduce(0) { $0 + $1.potentialSavings },
                 "opportunityCount": insights.savingsOpportunities.count
             ])
 
@@ -163,7 +163,6 @@ class BackgroundAnalysisManager: ObservableObject {
             }
 
             logger.info("Loaded cached AI analysis", category: .dataStorage, context: [
-                "analysisDate": insights.analysisDate,
                 "savingsCount": insights.savingsOpportunities.count,
                 "cacheAge": lastBackgroundUpdate?.timeIntervalSinceNow ?? 0
             ])
@@ -286,7 +285,7 @@ class BackgroundAnalysisManager: ObservableObject {
         }
 
         let days = Int(timeUntil) / (24 * 60 * 60)
-        let hours = Int(timeUntil % (24 * 60 * 60)) / (60 * 60)
+        let hours = Int(timeUntil.truncatingRemainder(dividingBy: 24 * 60 * 60)) / (60 * 60)
 
         if days > 0 {
             return "Refreshes in \(days) day\(days == 1 ? "" : "s")"

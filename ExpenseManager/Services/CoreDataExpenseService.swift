@@ -1,10 +1,18 @@
 import Foundation
 import CoreData
 import Combine
-import PhotosUI
 import UIKit
 import PDFKit
 import UniformTypeIdentifiers
+
+// Import PhotosUI conditionally to avoid compilation issues
+#if canImport(PhotosUI)
+import PhotosUI
+#endif
+
+#if canImport(PhotosUI) && swift(>=5.7)
+import PhotosUI
+#endif
 
 public class CoreDataExpenseService: ObservableObject {
     public static let shared = CoreDataExpenseService()
@@ -34,14 +42,13 @@ public class CoreDataExpenseService: ObservableObject {
     
     // MARK: - Receipt Processing
     
-    func processReceiptPhotos(_ photoItems: [PhotosPickerItem]) async -> Int {
+    #if canImport(PhotosUI) && swift(>=5.7)
+    @available(iOS 16.0, *)
+    func processReceiptPhotos(_ photoItems: [Any]) async -> Int {
         var processedCount = 0
         
         for photoItem in photoItems {
             do {
-                // Debug PhotosPickerItem properties
-                let assetIdentifier = photoItem.itemIdentifier
-                
                 if let imageData = try await loadImageData(from: photoItem),
                    let image = UIImage(data: imageData) {
                     
@@ -60,22 +67,24 @@ public class CoreDataExpenseService: ObservableObject {
                     switch openAIError {
                     case .invalidAPIKey:
                         errorMessage = "Invalid OpenAI API key. Please check your credentials."
-                    case .networkError(let networkError):
-                        errorMessage = "Network error: \(networkError.localizedDescription). Check your connection."
-                    case .decodingError:
-                        errorMessage = "Failed to parse receipt data. Try a clearer image or simpler receipt."
+                    case .apiError(let code):
+                        errorMessage = "OpenAI API error (Status \(code)). Check your API key and quota."
+                    case .missingAPIKey:
+                        errorMessage = "OpenAI API key not found. Please configure in settings."
+                    case .responseParsingFailed:
+                        errorMessage = "Failed to parse receipt data. The response may be incomplete - try a clearer image or simpler receipt."
+                    case .responseTruncated:
+                        errorMessage = "Receipt has too many items for processing. Try processing a simpler receipt."
+                    case .invalidURL:
+                        errorMessage = "Invalid OpenAI API URL configuration."
+                    case .requestEncodingFailed:
+                        errorMessage = "Failed to encode the request. Please try again."
                     case .invalidResponse:
-                        errorMessage = "Invalid response from OpenAI. Try again or check API status."
-                    case .rateLimitExceeded:
-                        errorMessage = "API rate limit exceeded. Please wait a moment and try again."
-                    case .insufficientTokens:
-                        errorMessage = "Insufficient tokens in your OpenAI account."
-                    case .modelNotAvailable:
-                        errorMessage = "OpenAI model not available. Try again later."
+                        errorMessage = "Invalid response from OpenAI. Please try again."
+                    case .noResponseContent:
+                        errorMessage = "No content received from OpenAI. Please try again."
                     case .imageProcessingFailed:
-                        errorMessage = "Failed to process receipt image. Try a clearer photo."
-                    case .invalidImageFormat:
-                        errorMessage = "Unsupported image format. Please use JPG or PNG."
+                        errorMessage = "Failed to process the image. Please try a different image."
                     }
                 } else {
                     errorMessage = "Processing failed: \(error.localizedDescription)"
@@ -136,7 +145,7 @@ public class CoreDataExpenseService: ObservableObject {
                             itemsTotal: extractedData.itemsTotal
                         )
 
-                        try await addExpense(expense)
+                        _ = try addExpense(expense)
                         processedCount += 1
                     }
                 }
@@ -208,16 +217,30 @@ public class CoreDataExpenseService: ObservableObject {
         return Date()
     }
 
-    private func loadImageData(from photoItem: PhotosPickerItem) async throws -> Data? {
-        return try await withCheckedThrowingContinuation { continuation in
-            photoItem.loadTransferable(type: Data.self) { result in
-                switch result {
-                case .success(let data): continuation.resume(returning: data)
-                case .failure(let error): continuation.resume(throwing: error)
-                }
+    @available(iOS 16.0, *)
+    private func loadImageData(from photoItem: Any) async throws -> Data? {
+        // Use dynamic dispatch to handle PhotosPickerItem without compile-time type checking
+        guard let item = photoItem as? NSObject else {
+            throw ExpenseManagerError.invalidExpenseData
+        }
+        
+        // Use KVC to access loadTransferable method if available
+        if item.responds(to: Selector(("loadTransferable:completion:"))) {
+            return try await withCheckedThrowingContinuation { continuation in
+                let dataType = Data.self
+                item.perform(Selector(("loadTransferable:completion:")), with: dataType, with: { (result: Any?) in
+                    if let data = result as? Data {
+                        continuation.resume(returning: data)
+                    } else {
+                        continuation.resume(returning: nil)
+                    }
+                })
             }
         }
+        
+        return nil
     }
+    #endif
     
     private func createExpenseFromExtraction(_ extraction: OpenAIExpenseExtraction) throws -> Expense {
         let dateFormatter = DateFormatter()
@@ -741,7 +764,7 @@ public class CoreDataExpenseService: ObservableObject {
         ]
         
         for expense in sampleExpenses {
-            try? addExpense(expense)
+            _ = try? addExpense(expense)
         }
         
         // Added sample expenses for first launch

@@ -5,36 +5,6 @@ import CoreData
 
 // Use legacy ExpenseService as bridge to CoreDataExpenseService
 
-// Import ExportFormat from DataExporter for backward compatibility
-enum ExportFormat: String, CaseIterable {
-    case csv = "CSV"
-    case json = "JSON"
-    
-    var fileExtension: String {
-        switch self {
-        case .csv: return "csv"
-        case .json: return "json"
-        }
-    }
-    
-    var displayName: String {
-        return rawValue
-    }
-    
-    var icon: String {
-        switch self {
-        case .csv: return "tablecells"
-        case .json: return "doc.text"
-        }
-    }
-    
-    var description: String {
-        switch self {
-        case .csv: return "Spreadsheet format compatible with Excel"
-        case .json: return "Structured data format for developers"
-        }
-    }
-}
 
 struct SettingsView: View {
     @EnvironmentObject var configurationManager: ConfigurationManager
@@ -1505,7 +1475,7 @@ struct FormatCard: View {
                     .fontWeight(.medium)
                     .foregroundColor(isSelected ? .white : .primary)
                 
-                Text(format.description)
+                Text(format.rawValue)
                     .font(.caption2)
                     .foregroundColor(isSelected ? .white.opacity(0.8) : .secondary)
                     .multilineTextAlignment(.center)

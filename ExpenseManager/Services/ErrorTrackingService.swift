@@ -125,6 +125,18 @@ class ErrorTrackingService {
 
     private func analyzeOpenAIError(_ error: OpenAIError, context: ReceiptProcessingContext) -> ErrorInfo {
         switch error {
+        case .missingAPIKey:
+            return ErrorInfo(
+                category: .apiKey,
+                message: "OpenAI API key not found",
+                userMessage: "Please configure your OpenAI API key to process receipts.",
+                suggestions: [
+                    "Go to Settings and add your OpenAI API key",
+                    "Get an API key from https://openai.com/api"
+                ],
+                isRecoverable: true
+            )
+            
         case .invalidAPIKey:
             return ErrorInfo(
                 category: .apiKey,
@@ -134,6 +146,43 @@ class ErrorTrackingService {
                     "Verify your OpenAI API key in Settings",
                     "Ensure your OpenAI account has sufficient credits",
                     "Check if your API key has the correct permissions"
+                ],
+                isRecoverable: true
+            )
+
+        case .invalidURL:
+            return ErrorInfo(
+                category: .openai,
+                message: "Invalid OpenAI API URL",
+                userMessage: "Service configuration error. Please try again.",
+                suggestions: [
+                    "Try again in a few moments",
+                    "Contact support if the problem persists"
+                ],
+                isRecoverable: true
+            )
+
+        case .requestEncodingFailed:
+            return ErrorInfo(
+                category: .openai,
+                message: "Failed to encode request",
+                userMessage: "Image couldn't be processed. Try with a different photo.",
+                suggestions: [
+                    "Take a new photo with better quality",
+                    "Ensure the image isn't corrupted",
+                    "Try with a smaller image file"
+                ],
+                isRecoverable: true
+            )
+
+        case .invalidResponse:
+            return ErrorInfo(
+                category: .openai,
+                message: "Invalid response from OpenAI",
+                userMessage: "Service temporarily unavailable. Please try again.",
+                suggestions: [
+                    "Try again in a few moments",
+                    "Check OpenAI status if issues persist"
                 ],
                 isRecoverable: true
             )
@@ -167,12 +216,29 @@ class ErrorTrackingService {
                 isRecoverable: true
             )
 
-        default:
+        case .imageProcessingFailed:
+            return ErrorInfo(
+                category: .imageProcessing,
+                message: "Failed to process image",
+                userMessage: "Image couldn't be processed. Try with a different photo.",
+                suggestions: [
+                    "Take a new photo with better lighting",
+                    "Ensure the image isn't corrupted",
+                    "Try with a smaller image file"
+                ],
+                isRecoverable: true
+            )
+
+        case .responseTruncated:
             return ErrorInfo(
                 category: .openai,
-                message: "OpenAI service error: \(error.localizedDescription)",
-                userMessage: "Receipt processing failed. Please try again.",
-                suggestions: ["Try again in a few moments", "Check your internet connection"],
+                message: "Response was truncated - try with a simpler receipt",
+                userMessage: "Receipt was too complex to process completely.",
+                suggestions: [
+                    "Try with a simpler receipt",
+                    "Crop the image to focus on key information",
+                    "Try processing individual sections separately"
+                ],
                 isRecoverable: true
             )
         }
@@ -279,6 +345,51 @@ class ErrorTrackingService {
                 ],
                 isRecoverable: true
             )
+            
+        case .invalidAmount:
+            return ErrorInfo(
+                category: .unknown,
+                message: "Invalid expense amount",
+                userMessage: "The expense amount is invalid.",
+                suggestions: ["Please check the amount and try again"],
+                isRecoverable: true
+            )
+            
+        case .invalidDate:
+            return ErrorInfo(
+                category: .unknown,
+                message: "Invalid expense date",
+                userMessage: "The expense date is invalid.",
+                suggestions: ["Please check the date and try again"],
+                isRecoverable: true
+            )
+            
+        case .dataCorruption:
+            return ErrorInfo(
+                category: .unknown,
+                message: "Data corruption detected",
+                userMessage: "Some data appears to be corrupted.",
+                suggestions: ["Please try again or contact support"],
+                isRecoverable: false
+            )
+            
+        case .persistenceError(let underlying):
+            return ErrorInfo(
+                category: .unknown,
+                message: "Failed to save data: \(underlying.localizedDescription)",
+                userMessage: "Failed to save your expense.",
+                suggestions: ["Please try again", "Check available storage space"],
+                isRecoverable: true
+            )
+            
+        case .invalidExpenseData:
+            return ErrorInfo(
+                category: .unknown,
+                message: "Invalid expense data",
+                userMessage: "The expense data is invalid.",
+                suggestions: ["Please check all fields and try again"],
+                isRecoverable: true
+            )
         }
     }
 
@@ -317,7 +428,7 @@ class ErrorTrackingService {
         let stats = errorStats
 
         // Customize message based on error frequency
-        var message = errorInfo.userMessage
+        let message = errorInfo.userMessage
         var suggestions = errorInfo.suggestions
 
         // Add context-based suggestions

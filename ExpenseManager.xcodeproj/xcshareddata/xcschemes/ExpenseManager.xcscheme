@@ -14,7 +14,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "501234567890ABCDEF000036"
+               BlueprintIdentifier = "501234567890ABCDEF000024"
                BuildableName = "ExpenseManager.app"
                BlueprintName = "ExpenseManager"
                ReferencedContainer = "container:ExpenseManager.xcodeproj">
@@ -44,7 +44,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "501234567890ABCDEF000036"
+            BlueprintIdentifier = "501234567890ABCDEF000024"
             BuildableName = "ExpenseManager.app"
             BlueprintName = "ExpenseManager"
             ReferencedContainer = "container:ExpenseManager.xcodeproj">
@@ -61,7 +61,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "501234567890ABCDEF000036"
+            BlueprintIdentifier = "501234567890ABCDEF000024"
             BuildableName = "ExpenseManager.app"
             BlueprintName = "ExpenseManager"
             ReferencedContainer = "container:ExpenseManager.xcodeproj">
@@ -74,5 +74,5 @@
    <ArchiveAction
       buildConfiguration = "Release"
       revealArchiveInOrganizer = "YES">
-   </AnalyzeAction>
+   </ArchiveAction>
 </Scheme>
